@@ -1,0 +1,53 @@
+@import "tailwindcss";
+@tailwind utilities;
+
+:root {
+  --primary: #2ecc71;
+  --primary-dark: #27ae60;
+  --secondary: #3498db;
+  --accent: #f39c12;
+  --dark: #34495e;
+  --light: #ecf0f1;
+  --danger: #e74c3c;
+  --success: #2ecc71;
+}
+
+@layer base {
+  body {
+    @apply bg-gray-50 text-gray-900;
+  }
+}
+
+@layer components {
+  .btn {
+    @apply inline-flex items-center justify-center px-4 py-2 rounded-md font-medium transition-colors;
+  }
+
+  .btn-primary {
+    @apply bg-green-600 text-white hover:bg-green-700;
+  }
+  
+  .btn-secondary {
+    @apply bg-blue-500 text-white hover:bg-blue-600;
+  }
+  
+  .btn-accent {
+    @apply bg-amber-500 text-white hover:bg-amber-600;
+  }
+
+  .btn-outline {
+    @apply border border-gray-300 bg-transparent hover:bg-gray-100;
+  }
+
+  .card {
+    @apply bg-white rounded-lg shadow-md overflow-hidden;
+  }
+  
+  .container {
+    @apply max-w-7xl mx-auto px-4 sm:px-6 lg:px-8;
+  }
+  
+  .input {
+    @apply w-full px-3 py-2 border border-gray-300 rounded-md shadow-sm focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-green-500;
+  }
+}
