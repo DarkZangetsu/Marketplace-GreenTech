@@ -48,4 +48,24 @@ export const LOGIN_USER = gql`
       token
     }
   }
+`;
+
+export const UPDATE_USER_PROFILE = gql`
+  mutation UpdateUserProfile($input: UserProfileInput!) {
+    updateUserProfile(input: $input) {
+      success
+      message
+      user {
+        id
+        username
+        email
+        firstName
+        lastName
+        phoneNumber
+        profilePicture
+        createdAt
+        updatedAt
+      }
+    }
+  }
 `; 
