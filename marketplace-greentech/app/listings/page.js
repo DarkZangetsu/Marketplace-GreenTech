@@ -1,235 +1,114 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
+import { useQuery } from '@apollo/client';
+import { GET_LISTINGS, GET_CATEGORIES } from '@/lib/graphql/queries';
 import Link from 'next/link';
-import { Search, Filter, MapPin, Calendar, ArrowUpDown, Grid, List } from 'lucide-react';
-
-// Mock data for listings
-const mockListings = [
-  {
-    id: 1,
-    title: 'Briques de construction',
-    description: 'Lot de 100 briques rouges récupérées d\'un chantier, en excellent état. Idéal pour petites constructions ou rénovations.',
-    category: 'Construction',
-    image: '/images/bricks.jpg',
-    location: 'Antananarivo',
-    date: '18/05/2023',
-    price: 150000,
-    condition: 'Excellent',
-  },
-  {
-    id: 2,
-    title: 'Poutres en bois',
-    description: 'Ensemble de poutres en bois dur de diverses tailles, idéal pour la construction ou l\'artisanat. Bois massif de haute qualité.',
-    category: 'Bois',
-    image: '/images/wood.jpg',
-    location: 'Tamatave',
-    date: '15/05/2023',
-    price: 0,
-    condition: 'Bon',
-  },
-  {
-    id: 3,
-    title: 'Panneaux solaires usagés',
-    description: 'Panneaux solaires fonctionnels mais avec quelques rayures. Puissance totale: 200W. Parfait pour petites installations.',
-    category: 'Électricité',
-    image: '/images/solar.jpg',
-    location: 'Mahajanga',
-    date: '12/05/2023',
-    price: 75000,
-    condition: 'Acceptable',
-  },
-  {
-    id: 4,
-    title: 'Tissus pour artisanat',
-    description: 'Chutes de tissus colorés, parfaits pour l\'artisanat et la couture. Différentes textures et motifs disponibles.',
-    category: 'Textile',
-    image: '/images/textile.jpg',
-    location: 'Fianarantsoa',
-    date: '10/05/2023',
-    price: 25000,
-    condition: 'Neuf',
-  },
-  {
-    id: 5,
-    title: 'Tuyaux en PVC',
-    description: 'Lot de tuyaux en PVC de différents diamètres. Idéal pour plomberie ou projets DIY.',
-    category: 'Plomberie',
-    image: '/images/pipes.jpg',
-    location: 'Antananarivo',
-    date: '08/05/2023',
-    price: 35000,
-    condition: 'Bon',
-  },
-  {
-    id: 6,
-    title: 'Portes en bois massif',
-    description: 'Deux portes en bois massif avec poignées et charnières. Parfait état, démontées soigneusement.',
-    category: 'Bois',
-    image: '/images/doors.jpg',
-    location: 'Toliara',
-    date: '05/05/2023',
-    price: 120000,
-    condition: 'Excellent',
-  },
-  {
-    id: 7,
-    title: 'Câbles électriques',
-    description: 'Lot de câbles électriques de différentes sections. Environ 50 mètres au total.',
-    category: 'Électricité',
-    image: '/images/cables.jpg',
-    location: 'Antananarivo',
-    date: '03/05/2023',
-    price: 40000,
-    condition: 'Bon',
-  },
-  {
-    id: 8,
-    title: 'Carreaux de céramique',
-    description: 'Carreaux de céramique bleus, 15x15cm. Reste d\'un projet de rénovation, environ 12 m².',
-    category: 'Construction',
-    image: '/images/tiles.jpg',
-    location: 'Mahajanga',
-    date: '01/05/2023',
-    price: 60000,
-    condition: 'Neuf',
-  },
-];
-
-// Categories
-const categories = [
-  { id: 'all', name: 'Toutes les catégories' },
-  { id: 'construction', name: 'Construction' },
-  { id: 'bois', name: 'Bois' },
-  { id: 'electricite', name: 'Électricité' },
-  { id: 'plomberie', name: 'Plomberie' },
-  { id: 'textile', name: 'Textile' },
-  { id: 'metal', name: 'Métaux' },
-  { id: 'peinture', name: 'Peinture' },
-];
-
-// Locations
-const locations = [
-  { id: 'all', name: 'Toute l\'île' },
-  { id: 'antananarivo', name: 'Antananarivo' },
-  { id: 'tamatave', name: 'Tamatave' },
-  { id: 'mahajanga', name: 'Mahajanga' },
-  { id: 'fianarantsoa', name: 'Fianarantsoa' },
-  { id: 'toliara', name: 'Toliara' },
-  { id: 'antsiranana', name: 'Antsiranana' },
-];
-
-// Conditions
-const conditions = [
-  { id: 'all', name: 'Tous états' },
-  { id: 'neuf', name: 'Neuf' },
-  { id: 'excellent', name: 'Excellent' },
-  { id: 'bon', name: 'Bon' },
-  { id: 'acceptable', name: 'Acceptable' },
-  { id: 'a-renover', name: 'À rénover' },
-];
-
-// Price ranges
-const priceRanges = [
-  { id: 'all', name: 'Tous les prix' },
-  { id: 'free', name: 'Gratuit' },
-  { id: '0-50000', name: 'Moins de 50 000 Ar' },
-  { id: '50000-100000', name: '50 000 - 100 000 Ar' },
-  { id: '100000-200000', name: '100 000 - 200 000 Ar' },
-  { id: '200000+', name: 'Plus de 200 000 Ar' },
-];
-
-// Helper to format price
-const formatPrice = (price) => {
-  if (price === 0) return 'Gratuit';
-  return new Intl.NumberFormat('fr-MG', { 
-    style: 'currency', 
-    currency: 'MGA',
-    maximumFractionDigits: 0 
-  }).format(price);
-};
+import Image from 'next/image';
+import { Search, Filter, MapPin, Calendar, ArrowUpDown, Grid, List, Tag } from 'lucide-react';
 
 export default function ListingsPage() {
-  const [viewMode, setViewMode] = useState('grid'); // 'grid' or 'list'
+  const [viewMode, setViewMode] = useState('grid');
   const [showFilters, setShowFilters] = useState(false);
-  const [searchTerm, setSearchTerm] = useState('');
   const [filters, setFilters] = useState({
-    category: 'all',
-    location: 'all',
-    condition: 'all',
-    priceRange: 'all',
-    sortBy: 'date-desc',
+    search: '',
+    categoryId: '',
+    condition: '',
+    minPrice: '',
+    maxPrice: '',
+    location: '',
+    status: 'active',
+    sortBy: 'date-desc'
   });
 
-  // Filter listings based on search and filters
-  const filteredListings = mockListings.filter(listing => {
-    // Search term filter
-    if (searchTerm && !listing.title.toLowerCase().includes(searchTerm.toLowerCase()) && 
-        !listing.description.toLowerCase().includes(searchTerm.toLowerCase())) {
-      return false;
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 12;
+
+  const { data: categoriesData } = useQuery(GET_CATEGORIES);
+  const { data: listingsData, loading, error } = useQuery(GET_LISTINGS, {
+    variables: {
+      search: filters.search || undefined,
+      categoryId: filters.categoryId || undefined,
+      condition: filters.condition || undefined,
+      minPrice: filters.minPrice ? parseFloat(filters.minPrice) : undefined,
+      maxPrice: filters.maxPrice ? parseFloat(filters.maxPrice) : undefined,
+      location: filters.location || undefined,
+      status: filters.status
     }
-    
-    // Category filter
-    if (filters.category !== 'all' && listing.category.toLowerCase() !== filters.category) {
-      return false;
-    }
-    
-    // Location filter
-    if (filters.location !== 'all' && listing.location.toLowerCase() !== filters.location) {
-      return false;
-    }
-    
-    // Condition filter
-    if (filters.condition !== 'all' && listing.condition.toLowerCase() !== filters.condition.toLowerCase()) {
-      return false;
-    }
-    
-    // Price range filter
-    if (filters.priceRange !== 'all') {
-      if (filters.priceRange === 'free' && listing.price !== 0) {
-        return false;
-      } else if (filters.priceRange === '0-50000' && (listing.price > 50000 || listing.price === 0)) {
-        return false;
-      } else if (filters.priceRange === '50000-100000' && (listing.price < 50000 || listing.price > 100000)) {
-        return false;
-      } else if (filters.priceRange === '100000-200000' && (listing.price < 100000 || listing.price > 200000)) {
-        return false;
-      } else if (filters.priceRange === '200000+' && listing.price < 200000) {
-        return false;
-      }
-    }
-    
-    return true;
-  }).sort((a, b) => {
-    // Sort listings
-    const dateSortFactor = filters.sortBy.includes('desc') ? -1 : 1;
-    
-    if (filters.sortBy.includes('date')) {
-      return dateSortFactor * (new Date(b.date.split('/').reverse().join('-')) - new Date(a.date.split('/').reverse().join('-')));
-    } else if (filters.sortBy.includes('price')) {
-      return filters.sortBy.includes('desc') ? b.price - a.price : a.price - b.price;
-    }
-    
-    return 0;
   });
 
-  const handleFilterChange = (filterName, value) => {
+  const handleFilterChange = (e) => {
+    const { name, value } = e.target;
     setFilters(prev => ({
       ...prev,
-      [filterName]: value
+      [name]: value
     }));
+    setCurrentPage(1);
   };
 
   const resetFilters = () => {
     setFilters({
-      category: 'all',
-      location: 'all',
-      condition: 'all',
-      priceRange: 'all',
-      sortBy: 'date-desc',
+      search: '',
+      categoryId: '',
+      condition: '',
+      minPrice: '',
+      maxPrice: '',
+      location: '',
+      status: 'active',
+      sortBy: 'date-desc'
     });
-    setSearchTerm('');
+    setCurrentPage(1);
   };
+
+  const filteredAndSortedListings = useMemo(() => {
+    if (!listingsData?.listings) return [];
+
+    let result = [...listingsData.listings];
+
+    // Trier les annonces
+    result.sort((a, b) => {
+      if (filters.sortBy === 'date-desc') {
+        return new Date(b.createdAt) - new Date(a.createdAt);
+      } else if (filters.sortBy === 'date-asc') {
+        return new Date(a.createdAt) - new Date(b.createdAt);
+      } else if (filters.sortBy === 'price-asc') {
+        return a.price - b.price;
+      } else if (filters.sortBy === 'price-desc') {
+        return b.price - a.price;
+      }
+      return 0;
+    });
+
+    return result;
+  }, [listingsData?.listings, filters.sortBy]);
+
+  const paginatedListings = useMemo(() => {
+    const startIndex = (currentPage - 1) * itemsPerPage;
+    return filteredAndSortedListings.slice(startIndex, startIndex + itemsPerPage);
+  }, [filteredAndSortedListings, currentPage, itemsPerPage]);
+
+  const totalPages = Math.ceil(filteredAndSortedListings.length / itemsPerPage);
+  const hasMore = currentPage < totalPages;
+
+  if (loading && !listingsData) {
+    return (
+      <div className="min-h-screen pt-20 pb-12 flex flex-col bg-gray-50">
+        <div className="flex-grow flex items-center justify-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600"></div>
+        </div>
+      </div>
+    );
+  }
+
+  if (error) {
+    return (
+      <div className="min-h-screen pt-20 pb-12 flex flex-col bg-gray-50">
+        <div className="flex-grow flex items-center justify-center">
+          <div className="text-red-600">Erreur lors du chargement des annonces</div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -239,7 +118,7 @@ export default function ListingsPage() {
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Annonces</h1>
             <p className="text-gray-600 mt-1">
-              {filteredListings.length} matériaux disponibles
+              {filteredAndSortedListings.length} matériaux disponibles
             </p>
           </div>
           
@@ -248,10 +127,11 @@ export default function ListingsPage() {
             <div className="relative w-full md:w-64">
               <input
                 type="text"
+                name="search"
                 placeholder="Rechercher une annonce..."
                 className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                value={searchTerm}
-                onChange={(e) => setSearchTerm(e.target.value)}
+                value={filters.search}
+                onChange={handleFilterChange}
               />
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
             </div>
@@ -306,26 +186,14 @@ export default function ListingsPage() {
                 <div>
                   <h3 className="text-sm font-medium text-gray-700 mb-2">Catégorie</h3>
                   <select
+                    name="categoryId"
                     className="w-full border border-gray-200 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                    value={filters.category}
-                    onChange={(e) => handleFilterChange('category', e.target.value)}
+                    value={filters.categoryId}
+                    onChange={handleFilterChange}
                   >
-                    {categories.map(category => (
+                    <option value="">Toutes les catégories</option>
+                    {categoriesData?.categories.map(category => (
                       <option key={category.id} value={category.id}>{category.name}</option>
-                    ))}
-                  </select>
-                </div>
-                
-                {/* Location filter */}
-                <div>
-                  <h3 className="text-sm font-medium text-gray-700 mb-2">Localisation</h3>
-                  <select
-                    className="w-full border border-gray-200 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                    value={filters.location}
-                    onChange={(e) => handleFilterChange('location', e.target.value)}
-                  >
-                    {locations.map(location => (
-                      <option key={location.id} value={location.id}>{location.name}</option>
                     ))}
                   </select>
                 </div>
@@ -334,37 +202,64 @@ export default function ListingsPage() {
                 <div>
                   <h3 className="text-sm font-medium text-gray-700 mb-2">État</h3>
                   <select
+                    name="condition"
                     className="w-full border border-gray-200 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
                     value={filters.condition}
-                    onChange={(e) => handleFilterChange('condition', e.target.value)}
+                    onChange={handleFilterChange}
                   >
-                    {conditions.map(condition => (
-                      <option key={condition.id} value={condition.id}>{condition.name}</option>
-                    ))}
+                    <option value="">Tous les états</option>
+                    <option value="new">Neuf</option>
+                    <option value="like_new">Comme neuf</option>
+                    <option value="good">Bon état</option>
+                    <option value="fair">État moyen</option>
+                    <option value="poor">Mauvais état</option>
                   </select>
                 </div>
                 
                 {/* Price filter */}
                 <div>
                   <h3 className="text-sm font-medium text-gray-700 mb-2">Prix</h3>
-                  <select
+                  <div className="grid grid-cols-2 gap-2">
+                    <input
+                      type="number"
+                      name="minPrice"
+                      value={filters.minPrice}
+                      onChange={handleFilterChange}
+                      placeholder="Min"
+                      className="w-full border border-gray-200 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                    />
+                    <input
+                      type="number"
+                      name="maxPrice"
+                      value={filters.maxPrice}
+                      onChange={handleFilterChange}
+                      placeholder="Max"
+                      className="w-full border border-gray-200 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                    />
+                  </div>
+                </div>
+                
+                {/* Location filter */}
+                <div>
+                  <h3 className="text-sm font-medium text-gray-700 mb-2">Localisation</h3>
+                  <input
+                    type="text"
+                    name="location"
+                    value={filters.location}
+                    onChange={handleFilterChange}
+                    placeholder="Ville, région..."
                     className="w-full border border-gray-200 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                    value={filters.priceRange}
-                    onChange={(e) => handleFilterChange('priceRange', e.target.value)}
-                  >
-                    {priceRanges.map(range => (
-                      <option key={range.id} value={range.id}>{range.name}</option>
-                    ))}
-                  </select>
+                  />
                 </div>
                 
                 {/* Sort filter */}
                 <div>
                   <h3 className="text-sm font-medium text-gray-700 mb-2">Trier par</h3>
                   <select
+                    name="sortBy"
                     className="w-full border border-gray-200 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
                     value={filters.sortBy}
-                    onChange={(e) => handleFilterChange('sortBy', e.target.value)}
+                    onChange={handleFilterChange}
                   >
                     <option value="date-desc">Plus récentes</option>
                     <option value="date-asc">Plus anciennes</option>
@@ -378,7 +273,7 @@ export default function ListingsPage() {
           
           {/* Listings content */}
           <div className="flex-1">
-            {filteredListings.length === 0 ? (
+            {paginatedListings.length === 0 ? (
               <div className="flex flex-col items-center justify-center bg-white border border-gray-200 rounded-lg p-8 text-center">
                 <div className="bg-gray-100 p-4 rounded-full mb-4">
                   <Search className="h-8 w-8 text-gray-400" />
@@ -401,9 +296,10 @@ export default function ListingsPage() {
                   <div className="flex items-center bg-white px-3 py-2 border border-gray-200 rounded-md">
                     <ArrowUpDown size={16} className="text-gray-500 mr-2" />
                     <select
+                      name="sortBy"
                       className="w-full bg-transparent border-none focus:outline-none text-sm"
                       value={filters.sortBy}
-                      onChange={(e) => handleFilterChange('sortBy', e.target.value)}
+                      onChange={handleFilterChange}
                     >
                       <option value="date-desc">Plus récentes</option>
                       <option value="date-asc">Plus anciennes</option>
@@ -416,19 +312,29 @@ export default function ListingsPage() {
                 {viewMode === 'grid' ? (
                   /* Grid view */
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {filteredListings.map(listing => (
+                    {paginatedListings.map(listing => (
                       <Link 
                         href={`/listings/${listing.id}`} 
                         key={listing.id}
                         className="card hover:shadow-lg transition-shadow"
                       >
                         <div className="relative h-48 w-full bg-gray-200">
-                          {/* This would be an actual image in production */}
-                          <div className="absolute inset-0 flex items-center justify-center bg-gray-200">
-                            <span className="text-gray-500 text-xs">[Image: {listing.title}]</span>
-                          </div>
+                          {listing.images && listing.images.length > 0 ? (
+                            <Image
+                              src={listing.images[0].image}
+                              alt={listing.title}
+                              fill
+                              className="object-cover"
+                            />
+                          ) : (
+                            <div className="absolute inset-0 flex items-center justify-center bg-gray-200">
+                              <span className="text-gray-500 text-xs">Pas d'image</span>
+                            </div>
+                          )}
                           <div className="absolute top-2 right-2 bg-white px-2 py-1 rounded-md shadow-sm">
-                            <span className="font-medium text-green-600">{formatPrice(listing.price)}</span>
+                            <span className="font-medium text-green-600">
+                              {listing.isFree ? 'Gratuit' : `${listing.price} €`}
+                            </span>
                           </div>
                         </div>
                         <div className="p-4">
@@ -441,12 +347,12 @@ export default function ListingsPage() {
                             </div>
                             <div className="flex items-center text-gray-500 text-sm">
                               <Calendar size={14} className="mr-1" />
-                              <span>{listing.date}</span>
+                              <span>{new Date(listing.createdAt).toLocaleDateString()}</span>
                             </div>
                           </div>
                           <div className="mt-3 flex items-center justify-between">
                             <span className="text-xs px-2 py-1 bg-gray-100 text-gray-700 rounded-full">
-                              {listing.category}
+                              {listing.category.name}
                             </span>
                             <span className="text-xs px-2 py-1 bg-green-50 text-green-600 rounded-full">
                               {listing.condition}
@@ -459,7 +365,7 @@ export default function ListingsPage() {
                 ) : (
                   /* List view */
                   <div className="space-y-4">
-                    {filteredListings.map(listing => (
+                    {paginatedListings.map(listing => (
                       <Link 
                         href={`/listings/${listing.id}`} 
                         key={listing.id}
@@ -467,22 +373,30 @@ export default function ListingsPage() {
                       >
                         <div className="flex flex-col sm:flex-row">
                           <div className="relative h-48 sm:h-auto sm:w-48 bg-gray-200">
-                            {/* This would be an actual image in production */}
-                            <div className="absolute inset-0 flex items-center justify-center bg-gray-200">
-                              <span className="text-gray-500 text-xs">[Image: {listing.title}]</span>
-                            </div>
+                            {listing.images && listing.images.length > 0 ? (
+                              <Image
+                                src={listing.images[0].image}
+                                alt={listing.title}
+                                fill
+                                className="object-cover"
+                              />
+                            ) : (
+                              <div className="absolute inset-0 flex items-center justify-center bg-gray-200">
+                                <span className="text-gray-500 text-xs">Pas d'image</span>
+                              </div>
+                            )}
                           </div>
                           <div className="p-4 flex-1">
                             <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start">
                               <h3 className="font-semibold text-lg">{listing.title}</h3>
                               <div className="mt-2 sm:mt-0 bg-green-50 px-3 py-1 rounded-full text-green-600 font-medium">
-                                {formatPrice(listing.price)}
+                                {listing.isFree ? 'Gratuit' : `${listing.price} €`}
                               </div>
                             </div>
                             <p className="text-gray-600 text-sm mt-2">{listing.description}</p>
                             <div className="mt-4 flex flex-wrap gap-2">
                               <span className="text-xs px-2 py-1 bg-gray-100 text-gray-700 rounded-full">
-                                {listing.category}
+                                {listing.category.name}
                               </span>
                               <span className="text-xs px-2 py-1 bg-green-50 text-green-600 rounded-full">
                                 {listing.condition}
@@ -495,13 +409,30 @@ export default function ListingsPage() {
                               </div>
                               <div className="flex items-center text-gray-500 text-sm">
                                 <Calendar size={14} className="mr-1" />
-                                <span>{listing.date}</span>
+                                <span>{new Date(listing.createdAt).toLocaleDateString()}</span>
                               </div>
                             </div>
                           </div>
                         </div>
                       </Link>
                     ))}
+                  </div>
+                )}
+
+                {/* Load more button */}
+                {hasMore && (
+                  <div className="mt-8 text-center">
+                    <button
+                      onClick={() => setCurrentPage(prev => prev + 1)}
+                      disabled={loading}
+                      className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50"
+                    >
+                      {loading ? (
+                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
+                      ) : (
+                        'Charger plus d\'annonces'
+                      )}
+                    </button>
                   </div>
                 )}
               </>

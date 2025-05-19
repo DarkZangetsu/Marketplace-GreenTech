@@ -16,6 +16,28 @@ export const GET_ME = gql`
   }
 `;
 
+export const GET_CATEGORIES = gql`
+  query GetCategories {
+    categories {
+      id
+      name
+      slug
+      createdAt
+    }
+  }
+`;
+
+export const GET_CATEGORY = gql`
+  query GetCategory($slug: String!) {
+    category(slug: $slug) {
+      id
+      name
+      slug
+      createdAt
+    }
+  }
+`;
+
 export const GET_LISTINGS = gql`
   query GetListings(
     $search: String
@@ -27,7 +49,6 @@ export const GET_LISTINGS = gql`
     $location: String
     $userId: ID
     $status: String
-    $limit: Int
   ) {
     listings(
       search: $search
@@ -39,7 +60,6 @@ export const GET_LISTINGS = gql`
       location: $location
       userId: $userId
       status: $status
-      limit: $limit
     ) {
       id
       title
@@ -62,16 +82,57 @@ export const GET_LISTINGS = gql`
         username
         firstName
         lastName
+        profilePicture
       }
       category {
         id
         name
         slug
       }
-      primaryImage {
+      images {
         id
         image
-        isPrimary
+      }
+    }
+  }
+`;
+
+export const GET_LISTING = gql`
+  query GetListing($id: ID!) {
+    listing(id: $id) {
+      id
+      title
+      description
+      condition
+      quantity
+      unit
+      price
+      isFree
+      location
+      address
+      contactMethod
+      phoneNumber
+      email
+      status
+      createdAt
+      updatedAt
+      user {
+        id
+        username
+        firstName
+        lastName
+        profilePicture
+        phoneNumber
+        email
+      }
+      category {
+        id
+        name
+        slug
+      }
+      images {
+        id
+        image
       }
     }
   }
