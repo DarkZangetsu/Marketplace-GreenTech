@@ -1,3 +1,4 @@
+/* eslint-disable react/no-unescaped-entities */
 import Image from "next/image";
 import Link from "next/link";
 import { ArrowRight, Search, Gift, PiggyBank, Recycle, MapPin } from "lucide-react";
