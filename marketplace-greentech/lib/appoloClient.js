@@ -1,5 +1,6 @@
 import { ApolloClient, InMemoryCache, HttpLink, from } from '@apollo/client';
 import { onError } from '@apollo/client/link/error';
+import { setContext } from '@apollo/client/link/context';
 
 // Gestion des erreurs
 const errorLink = onError(({ graphQLErrors, networkError }) => {
@@ -16,12 +17,26 @@ const errorLink = onError(({ graphQLErrors, networkError }) => {
 });
 
 const httpLink = new HttpLink({
-  uri: 'http://http://localhost:8000/graphql/',
+  uri: 'http://localhost:8000/graphql/',
+});
+
+// Ajout du token d'authentification aux requêtes
+const authLink = setContext((_, { headers }) => {
+  // Récupérer le token du localStorage
+  const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
+  
+  // Retourner les headers avec le token
+  return {
+    headers: {
+      ...headers,
+      authorization: token ? `JWT ${token}` : "",
+    }
+  };
 });
 
 // Création du client Apollo
 const client = new ApolloClient({
-  link: from([errorLink, httpLink]),
+  link: from([errorLink, authLink, httpLink]),
   cache: new InMemoryCache(),
   defaultOptions: {
     watchQuery: {
