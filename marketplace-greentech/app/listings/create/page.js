@@ -9,27 +9,9 @@ import { useMutation, useQuery } from '@apollo/client';
 import { CREATE_LISTING, UPLOAD_LISTING_IMAGE } from '@/lib/graphql/mutations';
 import { GET_CATEGORIES } from '@/lib/graphql/queries';
 import { toast } from 'react-hot-toast';
-// import Image from 'next/image';
+import { conditions, locations } from '@/app/components/constants/CreateListingConstant';
+import Image from 'next/image';
 
-// Conditions
-const conditions = [
-  { id: 'neuf', name: 'Neuf' },
-  { id: 'excellent', name: 'Excellent' },
-  { id: 'bon', name: 'Bon' },
-  { id: 'acceptable', name: 'Acceptable' },
-  { id: 'a-renover', name: 'À rénover' },
-];
-
-// Locations
-const locations = [
-  { id: 'antananarivo', name: 'Antananarivo' },
-  { id: 'tamatave', name: 'Tamatave' },
-  { id: 'mahajanga', name: 'Mahajanga' },
-  { id: 'fianarantsoa', name: 'Fianarantsoa' },
-  { id: 'toliara', name: 'Toliara' },
-  { id: 'antsiranana', name: 'Antsiranana' },
-  { id: 'autre', name: 'Autre ville' },
-];
 
 export default function CreateListingPage() {
   const router = useRouter();
@@ -71,13 +53,12 @@ export default function CreateListingPage() {
     }
 
     const parsedUser = JSON.parse(storedUser);
-    console.log('Stored user:', parsedUser); // Debug log
+    console.log('Stored user:', parsedUser);
 
     setToken(storedToken);
     setUser(parsedUser);
   }, [router]);
 
-  // GraphQL queries and mutations with proper auth headers
   const { data: categoriesData, loading: categoriesLoading } = useQuery(GET_CATEGORIES, {
     context: {
       headers: {
@@ -113,7 +94,6 @@ export default function CreateListingPage() {
         [name]: checked
       }));
 
-      // If marking as free, reset price
       if (name === 'isFree' && checked) {
         setFormData(prev => ({
           ...prev,
@@ -127,7 +107,6 @@ export default function CreateListingPage() {
       }));
     }
 
-    // Clear error when field is edited
     if (errors[name]) {
       setErrors(prev => ({
         ...prev,
@@ -139,10 +118,10 @@ export default function CreateListingPage() {
   const handleImageChange = async (e) => {
     const files = Array.from(e.target.files);
 
-    // Validate file types and sizes
+
     const validFiles = files.filter(file => {
       const isValidType = ['image/jpeg', 'image/png', 'image/webp'].includes(file.type);
-      const isValidSize = file.size <= 5 * 1024 * 1024; // 5MB max
+      const isValidSize = file.size <= 5 * 1024 * 1024;
 
       if (!isValidType) {
         toast.error(`${file.name} n'est pas un type d'image valide. Utilisez JPG, PNG ou WebP.`);
@@ -156,7 +135,6 @@ export default function CreateListingPage() {
 
     if (validFiles.length === 0) return;
 
-    // Create preview URLs
     const newPreviews = validFiles.map(file => ({
       file,
       preview: URL.createObjectURL(file)
@@ -281,7 +259,6 @@ export default function CreateListingPage() {
               console.log('All image uploads completed:', uploadResults);
             } catch (uploadError) {
               console.error('Error during image upload process:', uploadError);
-              // Continue anyway, the listing was created successfully
             }
           }
 
@@ -823,7 +800,9 @@ export default function CreateListingPage() {
                   {previewImages.map((image, index) => (
                     <div key={index} className="relative group">
                       <div className="aspect-w-1 aspect-h-1 w-full overflow-hidden rounded-lg bg-gray-200">
-                        <img
+                        <Image
+                          height={100}
+                          width={100}
                           src={image.preview}
                           alt={`Preview ${index + 1}`}
                           className="object-cover w-full h-full"

@@ -190,8 +190,8 @@ export default function ContactPage() {
                   <div className="ml-4">
                     <h3 className="text-lg font-semibold text-gray-900">Adresse</h3>
                     <p className="text-gray-600 mt-1">
-                      67 Rue Rainandriamampandry<br />
-                      Antananarivo 101<br />
+                      Antarandolo<br />
+                      Fianarantsoa 301<br />
                       Madagascar
                     </p>
                   </div>

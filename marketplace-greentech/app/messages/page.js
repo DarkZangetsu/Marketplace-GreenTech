@@ -10,7 +10,6 @@ export default function MessagesRedirectPage() {
   
   useEffect(() => {
     // Redirect to the dashboard messages page
-    // If there's a listing ID parameter, pass it along
     if (listingId) {
       router.push(`/dashboard/messages?listing=${listingId}`);
     } else {
