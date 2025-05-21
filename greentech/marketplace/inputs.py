@@ -20,6 +20,7 @@ class ListingInput(graphene.InputObjectType):
     contact_method = graphene.String(default_value="platform")
     phone_number = graphene.String()
     email = graphene.String()
+    user_id = graphene.ID(required=True)
     
 class UserProfileInput(graphene.InputObjectType):
     """Input type for updating a user profile"""
@@ -27,3 +28,8 @@ class UserProfileInput(graphene.InputObjectType):
     first_name = graphene.String(description="Prénom de l'utilisateur")
     last_name = graphene.String(description="Nom de famille de l'utilisateur")
     phone_number = graphene.String(description="Numéro de téléphone de l'utilisateur")
+
+class ListingImageInput(graphene.InputObjectType):
+    listing = graphene.ID(required=True)
+    image = graphene.String(required=True)  # Base64 encoded image
+    is_primary = graphene.Boolean()

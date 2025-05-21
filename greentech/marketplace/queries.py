@@ -27,6 +27,8 @@ class ListingImageType(DjangoObjectType):
 
 
 class ListingType(DjangoObjectType):
+    userId = graphene.ID(source='user.id')
+    
     class Meta:
         model = Listing
         fields = ('id', 'user', 'title', 'description', 'category', 'condition',

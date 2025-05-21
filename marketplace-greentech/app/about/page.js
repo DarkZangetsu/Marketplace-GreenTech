@@ -1,3 +1,4 @@
+/* eslint-disable react/no-unescaped-entities */
 import Link from 'next/link';
 import { Recycle, Heart, Globe, ShieldCheck, Users, BadgeCheck, Truck } from 'lucide-react';
 

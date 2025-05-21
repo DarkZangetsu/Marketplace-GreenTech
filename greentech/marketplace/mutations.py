@@ -9,6 +9,8 @@ from .listingMutation import ChangeListingStatusMutation, CreateListingMutation,
 
 from .categoriesMutation import CreateCategoryMutation, DeleteCategoryMutation, UpdateCategoryMutation
 
+from .listingimageMutation import UploadListingImageMutation, DeleteListingImageMutation, SetPrimaryListingImageMutation
+
 
 class Mutation(graphene.ObjectType):
     # Auth mutations
@@ -41,3 +43,8 @@ class Mutation(graphene.ObjectType):
     
     # Favorite mutations
     toggle_favorite = ToggleFavoriteMutation.Field()
+    
+    # Listing image mutations
+    upload_listing_image = UploadListingImageMutation.Field()
+    delete_listing_image = DeleteListingImageMutation.Field()
+    set_primary_listing_image = SetPrimaryListingImageMutation.Field()

@@ -44,6 +44,7 @@ INSTALLED_APPS = [
     'graphene_django',
     'corsheaders',
     'storages',
+    'graphene_file_upload',
     
     # Local apps
     'marketplace',

@@ -1,9 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import Image from 'next/image';
 import { useState, useEffect } from 'react';
-import { Menu, X, ChevronDown, Search, ShoppingBag, Heart, User, LogOut, Settings, MessageCircle } from 'lucide-react';
+import { Menu, X, ChevronDown, Search, Heart, User, LogOut, MessageCircle } from 'lucide-react';
 import { Menu as HeadlessMenu, Transition } from '@headlessui/react';
 import toast, { Toaster } from 'react-hot-toast';
 

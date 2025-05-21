@@ -5,6 +5,7 @@ import uuid
 import os
 from django.core.files.base import ContentFile
 import base64
+from graphene_file_upload.scalars import Upload
 
 from .queries import ListingImageType
 
@@ -13,72 +14,48 @@ from .models import Listing, ListingImage
 class UploadListingImageMutation(graphene.Mutation):
     class Arguments:
         listing_id = graphene.ID(required=True)
-        image_data = graphene.String(required=True)
-        is_primary = graphene.Boolean(default=False)
-        
-    image = graphene.Field(ListingImageType)
+        image = Upload(required=True)
+        is_primary = graphene.Boolean()
+
     success = graphene.Boolean()
-    message = graphene.String()
-    
-    @login_required
-    def mutate(self, info, listing_id, image_data, is_primary=False):
-        user = info.context.user
-        
+    listing_image = graphene.Field(ListingImageType)
+    errors = graphene.List(graphene.String)
+
+    @classmethod
+    def mutate(cls, root, info, listing_id, image, is_primary=False):
         try:
-            # Get the listing
-            listing = Listing.objects.get(id=listing_id)
+            listing = Listing.objects.get(pk=listing_id)
             
-            # Check if the user is the owner of the listing
-            if listing.user.id != user.id and not user.is_staff:
-                return UploadListingImageMutation(
-                    success=False,
-                    message="Permission refusée. Vous ne pouvez ajouter des images qu'à vos propres annonces."
-                )
-            
-            # Handle the base64 encoded image
-            # Format is typically: "data:image/jpeg;base64,/9j/4AAQSkZJRg..."
-            if ';base64,' not in image_data:
-                return UploadListingImageMutation(
-                    success=False,
-                    message="Format d'image invalide. L'image doit être encodée en base64."
-                )
-                
-            format, imgstr = image_data.split(';base64,')
-            ext = format.split('/')[-1]
-            
-            # Generate a unique filename
-            filename = f"{uuid.uuid4()}.{ext}"
-            
-            # Create the image file from the base64 data
-            data = ContentFile(base64.b64decode(imgstr), name=filename)
-            
-            # If this is set as primary, unset any existing primary images
-            if is_primary:
-                ListingImage.objects.filter(listing=listing, is_primary=True).update(is_primary=False)
-            
-            # Create the image record
-            image = ListingImage(
+            # Create the listing image
+            listing_image = ListingImage.objects.create(
                 listing=listing,
+                image=image,
                 is_primary=is_primary
             )
-            image.image.save(filename, data, save=False)
-            image.save()
+            
+            # If this is set as primary, unset any other primary images
+            if is_primary:
+                ListingImage.objects.filter(
+                    listing=listing,
+                    is_primary=True
+                ).exclude(
+                    id=listing_image.id
+                ).update(is_primary=False)
             
             return UploadListingImageMutation(
-                image=image,
                 success=True,
-                message="Image téléchargée avec succès"
+                listing_image=listing_image
             )
             
         except Listing.DoesNotExist:
             return UploadListingImageMutation(
                 success=False,
-                message=f"L'annonce avec l'ID {listing_id} n'existe pas"
+                errors=["Listing not found"]
             )
         except Exception as e:
             return UploadListingImageMutation(
                 success=False,
-                message=f"Erreur lors du téléchargement de l'image: {str(e)}"
+                errors=[str(e)]
             )
 
 

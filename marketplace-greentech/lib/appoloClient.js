@@ -1,6 +1,7 @@
-import { ApolloClient, InMemoryCache, HttpLink, from } from '@apollo/client';
+import { ApolloClient, InMemoryCache, from } from '@apollo/client';
 import { onError } from '@apollo/client/link/error';
 import { setContext } from '@apollo/client/link/context';
+import createUploadLink from "apollo-upload-client/createUploadLink.mjs"
 
 // Gestion des erreurs
 const errorLink = onError(({ graphQLErrors, networkError }) => {
@@ -16,27 +17,25 @@ const errorLink = onError(({ graphQLErrors, networkError }) => {
   }
 });
 
-const httpLink = new HttpLink({
+const uploadLink = createUploadLink({
   uri: 'http://localhost:8000/graphql/',
+  credentials: 'include',
 });
 
 // Ajout du token d'authentification aux requêtes
 const authLink = setContext((_, { headers }) => {
-  // Récupérer le token du localStorage
   const token = typeof window !== 'undefined' ? localStorage.getItem('token') : null;
-  
-  // Retourner les headers avec le token
   return {
     headers: {
       ...headers,
-      authorization: token ? `JWT ${token}` : "",
+      authorization: token ? `Bearer ${token}` : "",
     }
   };
 });
 
 // Création du client Apollo
 const client = new ApolloClient({
-  link: from([errorLink, authLink, httpLink]),
+  link: from([errorLink, authLink, uploadLink]),
   cache: new InMemoryCache(),
   defaultOptions: {
     watchQuery: {
@@ -45,6 +44,9 @@ const client = new ApolloClient({
     },
     query: {
       fetchPolicy: 'network-only',
+      errorPolicy: 'all',
+    },
+    mutate: {
       errorPolicy: 'all',
     },
   },

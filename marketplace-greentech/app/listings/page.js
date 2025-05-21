@@ -1,3 +1,4 @@
+/* eslint-disable react/no-unescaped-entities */
 'use client';
 
 import { useState, useMemo } from 'react';
@@ -5,7 +6,7 @@ import { useQuery } from '@apollo/client';
 import { GET_LISTINGS, GET_CATEGORIES } from '@/lib/graphql/queries';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Search, Filter, MapPin, Calendar, ArrowUpDown, Grid, List, Tag } from 'lucide-react';
+import { Search, Filter, MapPin, Calendar, ArrowUpDown, Grid, List } from 'lucide-react';
 
 export default function ListingsPage() {
   const [viewMode, setViewMode] = useState('grid');

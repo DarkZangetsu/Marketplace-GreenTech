@@ -1,21 +1,15 @@
+/* eslint-disable react/no-unescaped-entities */
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import { Camera, X, Info, Upload, MapPin } from 'lucide-react';
-
-// Categories
-const categories = [
-  { id: 'construction', name: 'Construction' },
-  { id: 'bois', name: 'Bois' },
-  { id: 'electricite', name: 'Électricité' },
-  { id: 'plomberie', name: 'Plomberie' },
-  { id: 'textile', name: 'Textile' },
-  { id: 'metal', name: 'Métaux' },
-  { id: 'peinture', name: 'Peinture' },
-  { id: 'autres', name: 'Autres' },
-];
+import { Camera, X, Info, MapPin } from 'lucide-react';
+import { useMutation, useQuery } from '@apollo/client';
+import { CREATE_LISTING, UPLOAD_LISTING_IMAGE } from '@/lib/graphql/mutations';
+import { GET_CATEGORIES } from '@/lib/graphql/queries';
+import { toast } from 'react-hot-toast';
+// import Image from 'next/image';
 
 // Conditions
 const conditions = [
@@ -39,7 +33,10 @@ const locations = [
 
 export default function CreateListingPage() {
   const router = useRouter();
-  
+  const [isClient, setIsClient] = useState(false);
+  const [token, setToken] = useState(null);
+  const [user, setUser] = useState(null);
+
   const [formData, setFormData] = useState({
     title: '',
     description: '',
@@ -56,21 +53,66 @@ export default function CreateListingPage() {
     email: '',
     images: [],
   });
-  
+
   const [errors, setErrors] = useState({});
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [previewImages, setPreviewImages] = useState([]);
   const [showSuccess, setShowSuccess] = useState(false);
 
+  useEffect(() => {
+    setIsClient(true);
+    const storedToken = localStorage.getItem('token');
+    const storedUser = localStorage.getItem('user');
+
+    if (!storedToken || !storedUser) {
+      toast.error('Vous devez être connecté pour créer une annonce');
+      router.push('/auth/login');
+      return;
+    }
+
+    const parsedUser = JSON.parse(storedUser);
+    console.log('Stored user:', parsedUser); // Debug log
+
+    setToken(storedToken);
+    setUser(parsedUser);
+  }, [router]);
+
+  // GraphQL queries and mutations with proper auth headers
+  const { data: categoriesData, loading: categoriesLoading } = useQuery(GET_CATEGORIES, {
+    context: {
+      headers: {
+        Authorization: token ? `Bearer ${token}` : ''
+      }
+    },
+    skip: !token,
+    fetchPolicy: 'network-only'
+  });
+
+  const [createListing] = useMutation(CREATE_LISTING, {
+    context: {
+      headers: {
+        Authorization: token ? `Bearer ${token}` : ''
+      }
+    }
+  });
+
+  const [uploadImage] = useMutation(UPLOAD_LISTING_IMAGE, {
+    context: {
+      headers: {
+        Authorization: token ? `Bearer ${token}` : ''
+      }
+    }
+  });
+
   const handleChange = (e) => {
     const { name, value, type, checked } = e.target;
-    
+
     if (type === 'checkbox') {
       setFormData(prev => ({
         ...prev,
         [name]: checked
       }));
-      
+
       // If marking as free, reset price
       if (name === 'isFree' && checked) {
         setFormData(prev => ({
@@ -84,7 +126,7 @@ export default function CreateListingPage() {
         [name]: value
       }));
     }
-    
+
     // Clear error when field is edited
     if (errors[name]) {
       setErrors(prev => ({
@@ -94,135 +136,294 @@ export default function CreateListingPage() {
     }
   };
 
-  const handleImageUpload = (e) => {
+  const handleImageChange = async (e) => {
     const files = Array.from(e.target.files);
-    
-    if (files.length + previewImages.length > 5) {
-      setErrors(prev => ({
-        ...prev,
-        images: 'Vous ne pouvez pas télécharger plus de 5 images.'
-      }));
-      return;
-    }
-    
-    // Create preview URLs and add to state
-    const newPreviewImages = files.map(file => ({
+
+    // Validate file types and sizes
+    const validFiles = files.filter(file => {
+      const isValidType = ['image/jpeg', 'image/png', 'image/webp'].includes(file.type);
+      const isValidSize = file.size <= 5 * 1024 * 1024; // 5MB max
+
+      if (!isValidType) {
+        toast.error(`${file.name} n'est pas un type d'image valide. Utilisez JPG, PNG ou WebP.`);
+      }
+      if (!isValidSize) {
+        toast.error(`${file.name} est trop volumineux. Taille maximale: 5MB.`);
+      }
+
+      return isValidType && isValidSize;
+    });
+
+    if (validFiles.length === 0) return;
+
+    // Create preview URLs
+    const newPreviews = validFiles.map(file => ({
       file,
-      url: URL.createObjectURL(file),
-      name: file.name
+      preview: URL.createObjectURL(file)
     }));
-    
-    setPreviewImages(prev => [...prev, ...newPreviewImages]);
+
+    setPreviewImages(prev => [...prev, ...newPreviews]);
     setFormData(prev => ({
       ...prev,
-      images: [...prev.images, ...files]
+      images: [...prev.images, ...validFiles]
     }));
-    
-    // Clear error if it exists
-    if (errors.images) {
-      setErrors(prev => ({
-        ...prev,
-        images: null
-      }));
-    }
   };
 
   const removeImage = (index) => {
-    // Revoke object URL to avoid memory leaks
-    URL.revokeObjectURL(previewImages[index].url);
-    
-    const newPreviewImages = [...previewImages];
-    newPreviewImages.splice(index, 1);
-    setPreviewImages(newPreviewImages);
-    
-    const newImages = [...formData.images];
-    newImages.splice(index, 1);
+    setPreviewImages(prev => {
+      const newPreviews = [...prev];
+      URL.revokeObjectURL(newPreviews[index].preview);
+      newPreviews.splice(index, 1);
+      return newPreviews;
+    });
+
     setFormData(prev => ({
       ...prev,
-      images: newImages
+      images: prev.images.filter((_, i) => i !== index)
     }));
   };
 
   const validateForm = () => {
     const newErrors = {};
-    
+
     if (!formData.title.trim()) {
       newErrors.title = 'Le titre est requis';
     }
-    
+
     if (!formData.description.trim()) {
       newErrors.description = 'La description est requise';
     }
-    
+
     if (!formData.category) {
       newErrors.category = 'La catégorie est requise';
     }
-    
+
     if (!formData.condition) {
-      newErrors.condition = "L'état est requis";
+      newErrors.condition = 'L\'état est requis';
     }
-    
-    if (!formData.isFree && (!formData.price || formData.price <= 0)) {
-      newErrors.price = 'Le prix est requis ou doit être supérieur à 0';
-    }
-    
+
     if (!formData.location) {
-      newErrors.location = 'La ville est requise';
+      newErrors.location = 'La localisation est requise';
     }
-    
+
+    if (!formData.isFree && !formData.price) {
+      newErrors.price = 'Le prix est requis pour les annonces payantes';
+    }
+
     if (formData.contactMethod === 'phone' && !formData.phoneNumber) {
-      newErrors.phoneNumber = 'Le numéro de téléphone est requis';
+      newErrors.phoneNumber = 'Le numéro de téléphone est requis pour ce mode de contact';
     }
-    
+
     if (formData.contactMethod === 'email' && !formData.email) {
-      newErrors.email = "L'adresse e-mail est requise";
+      newErrors.email = 'L\'email est requis pour ce mode de contact';
     }
-    
-    // Images are optional but we recommend at least one
-    
+
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
-    
+
     if (!validateForm()) {
-      // Scroll to first error
-      const firstError = document.querySelector('.error-message');
-      if (firstError) {
-        firstError.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }
       return;
     }
-    
+
+    if (!user || !token) {
+      toast.error('Vous devez être connecté pour créer une annonce');
+      router.push('/auth/login');
+      return;
+    }
+
     setIsSubmitting(true);
-    
+
     try {
-      // In a real app, we would upload images and submit data to an API
-      // For this demo, we'll simulate a successful submission
-      console.log('Form data submitted:', formData);
-      
-      // Simulate API call
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      
-      setShowSuccess(true);
-      
-      // Redirect to listings page after 2 seconds
-      setTimeout(() => {
-        router.push('/dashboard/listings');
-      }, 2000);
-      
+      console.log('Submitting with token:', token);
+      console.log('Current user:', user); // Debug log
+
+      // Create the listing
+      const { data: listingData } = await createListing({
+        variables: {
+          input: {
+            title: formData.title,
+            description: formData.description,
+            categoryId: formData.category,
+            condition: formData.condition,
+            quantity: parseInt(formData.quantity),
+            unit: formData.unit,
+            price: formData.isFree ? 0.0 : parseFloat(formData.price || 0),
+            isFree: formData.isFree,
+            location: formData.location,
+            contactMethod: formData.contactMethod,
+            userId: user.id,
+            ...(formData.address && { address: formData.address }),
+            ...(formData.phoneNumber && { phoneNumber: formData.phoneNumber }),
+            ...(formData.email && { email: formData.email })
+          }
+        }
+      });
+
+      console.log('Listing creation response:', listingData);
+
+      if (listingData?.createListing?.listing) {
+        const listingId = listingData.createListing.listing.id;
+        console.log('Listing created with ID:', listingId);
+
+        // Upload images if any
+        if (listingData?.createListing?.listing) {
+          const listingId = listingData.createListing.listing.id;
+          console.log('Listing created with ID:', listingId);
+
+          // Upload images if any
+          if (formData.images.length > 0) {
+            try {
+              const uploadResults = await uploadListingImages(listingId, formData.images, token);
+              console.log('All image uploads completed:', uploadResults);
+            } catch (uploadError) {
+              console.error('Error during image upload process:', uploadError);
+              // Continue anyway, the listing was created successfully
+            }
+          }
+
+          toast.success('Annonce créée avec succès !');
+          router.push(`/listings/${listingId}`);
+        }
+
+        toast.success('Annonce créée avec succès !');
+        router.push(`/listings/${listingId}`);
+      }
     } catch (error) {
-      console.error('Error submitting form:', error);
-      setErrors(prev => ({
-        ...prev,
-        submit: 'Une erreur est survenue. Veuillez réessayer.'
-      }));
+      console.error('Error creating listing:', error);
+
+      // Extract error message
+      let errorMessage = 'Une erreur est survenue lors de la création de l\'annonce';
+
+      if (error.graphQLErrors && error.graphQLErrors.length > 0) {
+        errorMessage = error.graphQLErrors[0].message;
+      } else if (error.networkError) {
+        errorMessage = 'Erreur de connexion au serveur. Veuillez vérifier votre connexion.';
+      }
+
+      setErrors({
+        submit: errorMessage
+      });
+
+      toast.error(errorMessage);
     } finally {
       setIsSubmitting(false);
     }
   };
+
+
+  const uploadListingImages = async (listingId, images, token) => {
+    console.log('Starting image uploads for listing ID:', listingId);
+    console.log('Number of images to upload:', images.length);
+
+    // Vérifiez que le token est valide
+    if (!token) {
+      console.error('No token available for image upload');
+      throw new Error('Authentication required for image upload');
+    }
+
+    // Créez une instance Apollo Client spécifique pour les uploads si nécessaire
+    const uploadClient = new ApolloClient({
+      link: createUploadLink({
+        uri: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/graphql/',
+        headers: {
+          Authorization: `Bearer ${token}`
+        }
+      }),
+      cache: new InMemoryCache()
+    });
+
+    const results = [];
+
+    for (let i = 0; i < images.length; i++) {
+      const file = images[i];
+      const isPrimary = i === 0;
+
+      try {
+        console.log(`Uploading image ${i + 1}/${images.length}`, { fileName: file.name, fileSize: file.size });
+
+        const { data } = await uploadClient.mutate({
+          mutation: UPLOAD_LISTING_IMAGE,
+          variables: {
+            listingId,
+            image: file,
+            isPrimary
+          }
+        });
+
+        console.log(`Image ${i + 1} upload success:`, data);
+        results.push(data);
+      } catch (error) {
+        console.error(`Error uploading image ${i + 1}:`, error);
+
+        // Log detailed error information
+        if (error.graphQLErrors) {
+          error.graphQLErrors.forEach(err => {
+            console.error('GraphQL Error:', err.message, err.path, err.extensions);
+          });
+        }
+        if (error.networkError) {
+          console.error('Network Error:', error.networkError);
+        }
+
+        // Add error to results
+        results.push({ error });
+      }
+    }
+
+    return results;
+  };
+
+  if (!isClient) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="max-w-3xl mx-auto">
+          <div className="animate-pulse">
+            <div className="h-8 bg-gray-200 rounded w-1/4 mb-4"></div>
+            <div className="h-4 bg-gray-200 rounded w-1/2 mb-8"></div>
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+              <div className="h-4 bg-gray-200 rounded w-3/4 mb-4"></div>
+              <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  if (!user || !token) {
+    return (
+      <div className="container mx-auto px-4 py-8">
+        <div className="max-w-3xl mx-auto">
+          <div className="bg-yellow-50 border-l-4 border-yellow-400 p-4 mb-6">
+            <div className="flex">
+              <div className="flex-shrink-0">
+                <svg className="h-5 w-5 text-yellow-400" viewBox="0 0 20 20" fill="currentColor">
+                  <path fillRule="evenodd" d="M8.257 3.099c.765-1.36 2.722-1.36 3.486 0l5.58 9.92c.75 1.334-.213 2.98-1.742 2.98H4.42c-1.53 0-2.493-1.646-1.743-2.98l5.58-9.92zM11 13a1 1 0 11-2 0 1 1 0 012 0zm-1-8a1 1 0 00-1 1v3a1 1 0 002 0V6a1 1 0 00-1-1z" clipRule="evenodd" />
+                </svg>
+              </div>
+              <div className="ml-3">
+                <p className="text-sm text-yellow-700">
+                  Vous devez être connecté pour créer une annonce. Redirection...
+                </p>
+              </div>
+            </div>
+          </div>
+          <div className="animate-pulse">
+            <div className="h-8 bg-gray-200 rounded w-1/4 mb-4"></div>
+            <div className="h-4 bg-gray-200 rounded w-1/2 mb-8"></div>
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 p-6">
+              <div className="h-4 bg-gray-200 rounded w-3/4 mb-4"></div>
+              <div className="h-4 bg-gray-200 rounded w-1/2"></div>
+            </div>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   if (showSuccess) {
     return (
@@ -255,18 +456,18 @@ export default function CreateListingPage() {
             Partagez les détails de vos matériaux pour leur donner une seconde vie.
           </p>
         </div>
-        
+
         {errors.submit && (
           <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md mb-6">
             {errors.submit}
           </div>
         )}
-        
+
         <form onSubmit={handleSubmit} className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
           {/* Form sections */}
           <div className="p-6 border-b border-gray-200">
             <h2 className="text-xl font-semibold text-gray-900 mb-4">Informations générales</h2>
-            
+
             <div className="space-y-6">
               {/* Title */}
               <div>
@@ -284,7 +485,7 @@ export default function CreateListingPage() {
                 />
                 {errors.title && <p className="mt-1 text-sm text-red-600 error-message">{errors.title}</p>}
               </div>
-              
+
               {/* Description */}
               <div>
                 <label htmlFor="description" className="block text-sm font-medium text-gray-700 mb-1">
@@ -304,7 +505,7 @@ export default function CreateListingPage() {
                   Soyez précis pour aider les acheteurs potentiels à comprendre ce que vous proposez.
                 </p>
               </div>
-              
+
               {/* Category and Condition */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
@@ -316,16 +517,20 @@ export default function CreateListingPage() {
                     name="category"
                     value={formData.category}
                     onChange={handleChange}
-                    className={`w-full px-3 py-2 border ${errors.category ? 'border-red-300' : 'border-gray-300'} rounded-md focus:outline-none focus:ring-2 focus:ring-green-500`}
+                    disabled={categoriesLoading}
+                    className={`w-full px-3 py-2 border ${errors.category ? 'border-red-300' : 'border-gray-300'} rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 ${categoriesLoading ? 'bg-gray-100' : ''}`}
                   >
                     <option value="">Sélectionner une catégorie</option>
-                    {categories.map(category => (
+                    {categoriesData?.categories?.map(category => (
                       <option key={category.id} value={category.id}>{category.name}</option>
                     ))}
                   </select>
                   {errors.category && <p className="mt-1 text-sm text-red-600 error-message">{errors.category}</p>}
+                  {categoriesLoading && (
+                    <p className="mt-1 text-sm text-gray-500">Chargement des catégories...</p>
+                  )}
                 </div>
-                
+
                 <div>
                   <label htmlFor="condition" className="block text-sm font-medium text-gray-700 mb-1">
                     État*
@@ -345,7 +550,7 @@ export default function CreateListingPage() {
                   {errors.condition && <p className="mt-1 text-sm text-red-600 error-message">{errors.condition}</p>}
                 </div>
               </div>
-              
+
               {/* Quantity and Unit */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
                 <div>
@@ -362,7 +567,7 @@ export default function CreateListingPage() {
                     className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500"
                   />
                 </div>
-                
+
                 <div>
                   <label htmlFor="unit" className="block text-sm font-medium text-gray-700 mb-1">
                     Unité
@@ -380,10 +585,10 @@ export default function CreateListingPage() {
               </div>
             </div>
           </div>
-          
+
           <div className="p-6 border-b border-gray-200">
             <h2 className="text-xl font-semibold text-gray-900 mb-4">Prix</h2>
-            
+
             <div className="space-y-6">
               {/* Free checkbox */}
               <div className="flex items-start">
@@ -402,7 +607,7 @@ export default function CreateListingPage() {
                   <p className="text-gray-500">Cochez cette case si vous souhaitez donner ces matériaux sans contrepartie financière.</p>
                 </div>
               </div>
-              
+
               {/* Price */}
               {!formData.isFree && (
                 <div>
@@ -429,10 +634,10 @@ export default function CreateListingPage() {
               )}
             </div>
           </div>
-          
+
           <div className="p-6 border-b border-gray-200">
             <h2 className="text-xl font-semibold text-gray-900 mb-4">Localisation</h2>
-            
+
             <div className="space-y-6">
               {/* Location */}
               <div>
@@ -453,7 +658,7 @@ export default function CreateListingPage() {
                 </select>
                 {errors.location && <p className="mt-1 text-sm text-red-600 error-message">{errors.location}</p>}
               </div>
-              
+
               {/* Address */}
               <div>
                 <label htmlFor="address" className="block text-sm font-medium text-gray-700 mb-1">
@@ -481,10 +686,10 @@ export default function CreateListingPage() {
               </div>
             </div>
           </div>
-          
+
           <div className="p-6 border-b border-gray-200">
             <h2 className="text-xl font-semibold text-gray-900 mb-4">Contact</h2>
-            
+
             <div className="space-y-6">
               {/* Contact method */}
               <div>
@@ -506,7 +711,7 @@ export default function CreateListingPage() {
                       Via la messagerie de la plateforme (recommandé)
                     </label>
                   </div>
-                  
+
                   <div className="flex items-center">
                     <input
                       id="phone"
@@ -521,7 +726,7 @@ export default function CreateListingPage() {
                       Par téléphone
                     </label>
                   </div>
-                  
+
                   <div className="flex items-center">
                     <input
                       id="email"
@@ -538,7 +743,7 @@ export default function CreateListingPage() {
                   </div>
                 </div>
               </div>
-              
+
               {/* Phone number */}
               {formData.contactMethod === 'phone' && (
                 <div>
@@ -557,7 +762,7 @@ export default function CreateListingPage() {
                   {errors.phoneNumber && <p className="mt-1 text-sm text-red-600 error-message">{errors.phoneNumber}</p>}
                 </div>
               )}
-              
+
               {/* Email */}
               {formData.contactMethod === 'email' && (
                 <div>
@@ -578,10 +783,10 @@ export default function CreateListingPage() {
               )}
             </div>
           </div>
-          
+
           <div className="p-6 border-b border-gray-200">
             <h2 className="text-xl font-semibold text-gray-900 mb-4">Photos</h2>
-            
+
             <div className="space-y-6">
               <div className="bg-gray-50 border border-dashed border-gray-300 rounded-lg p-6">
                 <div className="text-center">
@@ -598,7 +803,7 @@ export default function CreateListingPage() {
                         type="file"
                         multiple
                         accept="image/*"
-                        onChange={handleImageUpload}
+                        onChange={handleImageChange}
                         className="sr-only"
                       />
                     </label>
@@ -609,9 +814,9 @@ export default function CreateListingPage() {
                   </p>
                 </div>
               </div>
-              
+
               {errors.images && <p className="mt-1 text-sm text-red-600 error-message">{errors.images}</p>}
-              
+
               {/* Image previews */}
               {previewImages.length > 0 && (
                 <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-5 gap-4">
@@ -619,7 +824,7 @@ export default function CreateListingPage() {
                     <div key={index} className="relative group">
                       <div className="aspect-w-1 aspect-h-1 w-full overflow-hidden rounded-lg bg-gray-200">
                         <img
-                          src={image.url}
+                          src={image.preview}
                           alt={`Preview ${index + 1}`}
                           className="object-cover w-full h-full"
                         />
@@ -631,12 +836,12 @@ export default function CreateListingPage() {
                       >
                         <X size={16} className="text-gray-700" />
                       </button>
-                      <p className="mt-1 text-xs text-gray-500 truncate">{image.name}</p>
+                      <p className="mt-1 text-xs text-gray-500 truncate">{image.file.name}</p>
                     </div>
                   ))}
                 </div>
               )}
-              
+
               <div className="bg-blue-50 border-l-4 border-blue-400 p-4 flex">
                 <div className="flex-shrink-0">
                   <Info className="h-5 w-5 text-blue-400" />
@@ -649,7 +854,7 @@ export default function CreateListingPage() {
               </div>
             </div>
           </div>
-          
+
           {/* Submit buttons */}
           <div className="px-6 py-4 bg-gray-50 flex justify-between">
             <Link
@@ -658,7 +863,7 @@ export default function CreateListingPage() {
             >
               Annuler
             </Link>
-            
+
             <div className="flex space-x-3">
               <button
                 type="submit"

@@ -64,8 +64,8 @@ class RegisterUserMutation(graphene.Mutation):
             user.set_password(password)
             user.save()
             
-            # Generate token
-            token = get_token(user)
+            # Generate token with user ID
+            token = get_token(user, {'user_id': str(user.id)})
             
             return RegisterUserMutation(
                 user=user,
@@ -114,7 +114,8 @@ class LoginUserMutation(graphene.Mutation):
                 )
 
         if user is not None:
-            token = get_token(user)
+            # Generate token with user ID
+            token = get_token(user, {'user_id': str(user.id)})
             return LoginUserMutation(
                 user=user,
                 token=token,

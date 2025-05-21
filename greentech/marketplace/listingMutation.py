@@ -2,12 +2,13 @@ import graphene
 from graphql_jwt.decorators import login_required
 from django.core.exceptions import ValidationError
 import uuid
+from decimal import Decimal
 
 from .queries import ListingType
 
 from .inputs import ListingInput
 
-from .models import Category, Listing
+from .models import Category, Listing, User
 
 class CreateListingMutation(graphene.Mutation):
     class Arguments:
@@ -15,14 +16,16 @@ class CreateListingMutation(graphene.Mutation):
 
     listing = graphene.Field(ListingType)
     
-    @login_required
     def mutate(self, info, input):
-        user = info.context.user
-        
         try:
             category = Category.objects.get(id=input.category_id)
         except Category.DoesNotExist:
             raise Exception(f"Category with ID {input.category_id} does not exist")
+        
+        try:
+            user = User.objects.get(id=input.user_id)
+        except User.DoesNotExist:
+            raise Exception(f"User with ID {input.user_id} does not exist")
         
         listing = Listing(
             id=uuid.uuid4(),
@@ -40,11 +43,11 @@ class CreateListingMutation(graphene.Mutation):
         
         # Handle price based on whether it's free or not
         if input.is_free:
-            listing.price = 0
+            listing.price = Decimal('0.00')
         else:
             if input.price is None:
                 raise ValidationError("Price is required for non-free listings")
-            listing.price = input.price
+            listing.price = Decimal(str(input.price))
         
         # Optional fields
         if hasattr(input, 'address') and input.address:
@@ -101,11 +104,11 @@ class UpdateListingMutation(graphene.Mutation):
             
             # Handle price based on whether it's free or not
             if input.is_free:
-                listing.price = 0
+                listing.price = Decimal('0.00')
             else:
                 if input.price is None:
                     raise ValidationError("Price is required for non-free listings")
-                listing.price = input.price
+                listing.price = Decimal(str(input.price))
             
             # Optional fields
             if hasattr(input, 'address'):
