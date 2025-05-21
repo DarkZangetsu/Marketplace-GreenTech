@@ -1,6 +1,7 @@
+/* eslint-disable react/no-unescaped-entities */
 'use client';
 
-import { useState } from 'react';
+import { useState, use } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { 
@@ -18,51 +19,41 @@ import {
   ChevronLeft,
   ChevronRight
 } from 'lucide-react';
+import Image from 'next/image';
+import { useQuery } from '@apollo/client';
+import { format } from 'date-fns';
+import { fr } from 'date-fns/locale';
+import { GET_LISTING } from '@/lib/graphql/queries';
 
-// Mock listing data (in a real app, this would come from an API)
-const mockListing = {
-  id: 1,
-  title: 'Briques de construction',
-  description: 'Lot de 100 briques rouges récupérées d\'un chantier de rénovation dans le centre-ville. Les briques sont en excellent état, sans fissures ni éclats majeurs. Dimensions standards: 22 x 10,5 x 6,5 cm. Idéal pour petites constructions, murets de jardin, ou projets de rénovation. \n\nCes briques ont environ 5 ans et proviennent d\'un bâtiment historique rénové. Elles ont été soigneusement démontées et nettoyées. Disponibles immédiatement, à venir chercher sur place.',
-  category: 'Construction',
-  condition: 'Excellent',
-  quantity: 100,
-  unit: 'pièces',
-  price: 150000,
-  location: 'Antananarivo',
-  address: 'Quartier Analakely',
-  contactMethod: 'platform',
-  seller: {
-    id: 101,
-    name: 'Rakoto Jean',
-    memberSince: 'Janvier 2023',
-    rating: 4.8,
-    responseRate: 95,
-    avatar: null,
-  },
-  images: [
-    '/images/bricks1.jpg',
-    '/images/bricks2.jpg',
-    '/images/bricks3.jpg',
-  ],
-  postedDate: '18/05/2023',
-  views: 45,
-  isFavorited: false,
-};
 
 export default function ListingDetailPage({ params }) {
-  const router = useRouter();
-  const { id } = params;
+  // Utiliser React.use() pour déballer params
+  const unwrappedParams = use(params);
+  const { id } = unwrappedParams;
   
-  // In a real app, we would fetch the listing data based on the id
-  const listing = mockListing;
+  const router = useRouter();
+  
+  // Fetch listing data from GraphQL API
+  const { loading, error, data } = useQuery(GET_LISTING, {
+    variables: { id },
+  });
   
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [showContactForm, setShowContactForm] = useState(false);
   const [message, setMessage] = useState('');
   const [isSending, setIsSending] = useState(false);
-  const [isFavorite, setIsFavorite] = useState(listing.isFavorited);
+  const [isFavorite, setIsFavorite] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+
+  // Handle loading and error states
+  if (loading) return <div className="container mx-auto px-4 py-8 flex justify-center"><p>Chargement en cours...</p></div>;
+  if (error) return <div className="container mx-auto px-4 py-8 flex justify-center"><p>Erreur de chargement: {error.message}</p></div>;
+  
+  // Get the listing from the data
+  const listing = data?.listing;
+  
+  // If no listing found
+  if (!listing) return <div className="container mx-auto px-4 py-8 flex justify-center"><p>Annonce introuvable</p></div>;
 
   const nextImage = () => {
     setActiveImageIndex((prev) => 
@@ -109,12 +100,35 @@ export default function ListingDetailPage({ params }) {
   };
 
   const formatPrice = (price) => {
-    if (price === 0) return 'Gratuit';
+    if (price === 0 || listing.isFree) return 'Gratuit';
     return new Intl.NumberFormat('fr-MG', { 
       style: 'currency', 
       currency: 'MGA',
       maximumFractionDigits: 0 
     }).format(price);
+  };
+  
+  // Format the date
+  const formatDate = (dateString) => {
+    const date = new Date(dateString);
+    return format(date, "dd MMMM yyyy", { locale: fr });
+  };
+  
+  // Get seller's full name
+  const sellerName = listing.user.firstName && listing.user.lastName 
+    ? `${listing.user.firstName} ${listing.user.lastName}`
+    : listing.user.username;
+  
+  const memberSince = format(new Date(listing.user.createdAt || new Date()), "MMMM yyyy", { locale: fr });
+
+  // Helper function to generate correct image URL
+  const getImageUrl = (imagePath) => {
+    // Si l'URL est déjà complète
+    if (imagePath.startsWith('http')) {
+      return imagePath;
+    } 
+    // Si c'est un chemin relatif
+    return `http://localhost:8000/media/${imagePath}`;
   };
 
   return (
@@ -135,13 +149,15 @@ export default function ListingDetailPage({ params }) {
         <div className="lg:col-span-2 space-y-6">
           {/* Image gallery */}
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-            <div className="relative aspect-w-16 aspect-h-9 bg-gray-200">
-              {listing.images.length > 0 ? (
+            <div className="relative aspect-w-16 aspect-h-9 bg-gray-200" style={{ height: '400px' }}>
+              {listing.images && listing.images.length > 0 ? (
                 <>
-                  {/* This would be an actual image in production */}
-                  <div className="absolute inset-0 flex items-center justify-center bg-gray-200">
-                    <span className="text-gray-500 text-lg">[Image: {listing.title} {activeImageIndex + 1}]</span>
-                  </div>
+                  <Image 
+                    src={getImageUrl(listing.images[activeImageIndex].image)}
+                    alt={listing.title}
+                    fill
+                    className="object-cover"
+                  />
                   
                   {/* Navigation arrows */}
                   {listing.images.length > 1 && (
@@ -171,7 +187,7 @@ export default function ListingDetailPage({ params }) {
             </div>
             
             {/* Thumbnails */}
-            {listing.images.length > 1 && (
+            {listing.images && listing.images.length > 1 && (
               <div className="flex p-2 overflow-x-auto">
                 {listing.images.map((image, index) => (
                   <button
@@ -181,10 +197,13 @@ export default function ListingDetailPage({ params }) {
                       index === activeImageIndex ? 'ring-2 ring-green-500' : 'opacity-70'
                     }`}
                   >
-                    {/* This would be an actual thumbnail in production */}
-                    <div className="w-full h-full flex items-center justify-center bg-gray-200">
-                      <span className="text-gray-500 text-xs">{index + 1}</span>
-                    </div>
+                    <Image 
+                      src={getImageUrl(image.image)}
+                      alt={`${listing.title} - thumbnail ${index + 1}`}
+                      width={64}
+                      height={64}
+                      className="object-cover w-full h-full"
+                    />
                   </button>
                 ))}
               </div>
@@ -203,20 +222,20 @@ export default function ListingDetailPage({ params }) {
                 </div>
                 <div className="flex items-center mr-4">
                   <Calendar size={16} className="mr-1" />
-                  <span>Publié le {listing.postedDate}</span>
+                  <span>Publié le {formatDate(listing.createdAt)}</span>
                 </div>
                 <div className="flex items-center">
                   <svg className="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
                   </svg>
-                  <span>{listing.views} vues</span>
+                  <span>{listing.viewCount || 0} vues</span>
                 </div>
               </div>
               
               <div className="flex items-center mb-6">
                 <span className="text-3xl font-bold text-gray-900">{formatPrice(listing.price)}</span>
-                {listing.price === 0 && (
+                {(listing.price === 0 || listing.isFree) && (
                   <span className="ml-2 px-2 py-1 bg-green-100 text-green-800 text-xs font-medium rounded-full">Don</span>
                 )}
               </div>
@@ -235,11 +254,11 @@ export default function ListingDetailPage({ params }) {
                     <ul className="space-y-2">
                       <li className="flex justify-between">
                         <span className="text-gray-600">Catégorie</span>
-                        <span className="font-medium">{listing.category}</span>
+                        <span className="font-medium">{listing.category?.name || 'Non spécifié'}</span>
                       </li>
                       <li className="flex justify-between">
                         <span className="text-gray-600">État</span>
-                        <span className="font-medium">{listing.condition}</span>
+                        <span className="font-medium">{listing.condition || 'Non spécifié'}</span>
                       </li>
                       <li className="flex justify-between">
                         <span className="text-gray-600">Quantité</span>
@@ -273,10 +292,12 @@ export default function ListingDetailPage({ params }) {
               
               <div className="flex items-center mb-4">
                 <div className="w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center mr-3">
-                  {listing.seller.avatar ? (
-                    <img 
-                      src={listing.seller.avatar} 
-                      alt={listing.seller.name} 
+                  {listing.user?.profilePicture ? (
+                    <Image
+                      src={getImageUrl(listing.user.profilePicture)}
+                      alt={sellerName} 
+                      width={48}
+                      height={48}
                       className="w-full h-full rounded-full object-cover"
                     />
                   ) : (
@@ -284,34 +305,8 @@ export default function ListingDetailPage({ params }) {
                   )}
                 </div>
                 <div>
-                  <h3 className="font-medium text-gray-900">{listing.seller.name}</h3>
-                  <p className="text-gray-500 text-sm">Membre depuis {listing.seller.memberSince}</p>
-                </div>
-              </div>
-              
-              <div className="space-y-3 mb-6">
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600 text-sm">Évaluation</span>
-                  <div className="flex items-center">
-                    <span className="font-medium mr-1">{listing.seller.rating}</span>
-                    <div className="flex">
-                      {[...Array(5)].map((_, i) => (
-                        <svg 
-                          key={i} 
-                          className={`w-4 h-4 ${i < Math.floor(listing.seller.rating) ? 'text-yellow-400' : 'text-gray-300'}`} 
-                          fill="currentColor" 
-                          viewBox="0 0 20 20"
-                        >
-                          <path d="M9.049 2.927c.3-.921 1.603-.921 1.902 0l1.07 3.292a1 1 0 00.95.69h3.462c.969 0 1.371 1.24.588 1.81l-2.8 2.034a1 1 0 00-.364 1.118l1.07 3.292c.3.921-.755 1.688-1.54 1.118l-2.8-2.034a1 1 0 00-1.175 0l-2.8 2.034c-.784.57-1.838-.197-1.539-1.118l1.07-3.292a1 1 0 00-.364-1.118L2.98 8.72c-.783-.57-.38-1.81.588-1.81h3.461a1 1 0 00.951-.69l1.07-3.292z" />
-                        </svg>
-                      ))}
-                    </div>
-                  </div>
-                </div>
-                
-                <div className="flex justify-between items-center">
-                  <span className="text-gray-600 text-sm">Taux de réponse</span>
-                  <span className="font-medium">{listing.seller.responseRate}%</span>
+                  <h3 className="font-medium text-gray-900">{sellerName}</h3>
+                  <p className="text-gray-500 text-sm">Membre depuis {memberSince}</p>
                 </div>
               </div>
               
@@ -361,6 +356,31 @@ export default function ListingDetailPage({ params }) {
                     </button>
                   </div>
                 </form>
+              )}
+              
+              {/* Contact methods if specified */}
+              {listing.contactMethod !== 'platform' && (
+                <div className="mt-6 pt-6 border-t border-gray-200">
+                  <h3 className="font-medium text-gray-900 mb-3">Coordonnées du vendeur</h3>
+                  
+                  {listing.contactMethod === 'phone' || listing.contactMethod === 'both' ? (
+                    <div className="flex items-center mb-2">
+                      <Phone size={16} className="text-gray-500 mr-2" />
+                      <a href={`tel:${listing.phoneNumber || listing.user.phoneNumber}`} className="text-gray-700 hover:underline">
+                        {listing.phoneNumber || listing.user.phoneNumber || 'Non spécifié'}
+                      </a>
+                    </div>
+                  ) : null}
+                  
+                  {listing.contactMethod === 'email' || listing.contactMethod === 'both' ? (
+                    <div className="flex items-center">
+                      <Mail size={16} className="text-gray-500 mr-2" />
+                      <a href={`mailto:${listing.email || listing.user.email}`} className="text-gray-700 hover:underline">
+                        {listing.email || listing.user.email || 'Non spécifié'}
+                      </a>
+                    </div>
+                  ) : null}
+                </div>
               )}
             </div>
           </div>
@@ -419,4 +439,4 @@ export default function ListingDetailPage({ params }) {
       {/* Similar listings section would go here */}
     </div>
   );
-} 
+}
