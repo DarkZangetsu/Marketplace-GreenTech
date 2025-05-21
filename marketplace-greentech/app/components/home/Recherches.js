@@ -1,8 +1,12 @@
 /* eslint-disable react/no-unescaped-entities */
+import { GET_CATEGORIES } from '@/lib/graphql/queries';
+import { useQuery } from '@apollo/client';
 import { Search } from 'lucide-react';
 import React from 'react'
 
 export default function Recherches() {
+   const { data: categoriesData } = useQuery(GET_CATEGORIES);
+
   return (
     <div>
       {/* Search Section */}

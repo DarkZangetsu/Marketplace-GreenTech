@@ -1,4 +1,5 @@
 import { GET_LISTINGS } from '@/lib/graphql/queries';
+import { useQuery } from '@apollo/client';
 import { ArrowRight, Gift, MapPin } from 'lucide-react'
 import Image from 'next/image'
 import Link from 'next/link'
@@ -11,17 +12,17 @@ const formatPrice = (price) => {
 };
 
 export default function Listings() {
-
-    const { data: listingsData, loading: listingsLoading } = useQuery(GET_LISTINGS, {
-        variables: {
-        limit: 4,
-        status: 'active'
-        }
+  // Requête GraphQL pour récupérer exactement 4 annonces actives
+  const { data: listingsData, loading: listingsLoading } = useQuery(GET_LISTINGS, {
+    variables: {
+      limit: 4,
+      status: 'active'
+    }
   });
 
   return (
     <div>
-         {/* Featured Listings */}
+      {/* Featured Listings - Affichage limité à 4 annonces */}
       <section className="py-16">
         <div className="container mx-auto px-4">
           <div className="flex justify-between items-center mb-8">
@@ -33,6 +34,7 @@ export default function Listings() {
           
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
             {listingsLoading ? (
+              // Affichage de 4 placeholders pendant le chargement
               Array(4).fill(0).map((_, index) => (
                 <div key={index} className="card hover:shadow-lg transition-shadow animate-pulse">
                   <div className="relative h-48 w-full bg-gray-200"></div>
@@ -43,7 +45,8 @@ export default function Listings() {
                 </div>
               ))
             ) : listingsData?.listings?.length ? (
-              listingsData.listings.map(listing => (
+              // Affichage des 4 annonces récupérées (ou moins si moins disponibles)
+              listingsData.listings.slice(0, 4).map(listing => (
                 <div key={listing.id} className="card hover:shadow-lg transition-shadow">
                   <div className="relative h-48 w-full bg-gray-200">
                     {listing.images && listing.images.length > 0 ? (
@@ -83,6 +86,7 @@ export default function Listings() {
                 </div>
               ))
             ) : (
+              // Message si aucune annonce n'est disponible
               <div className="col-span-full flex flex-col items-center justify-center py-16">
                 <div className="bg-green-50 p-6 rounded-full mb-4 flex items-center justify-center">
                   <Gift className="h-12 w-12 text-green-400" />
@@ -95,7 +99,6 @@ export default function Listings() {
           </div>
         </div>
       </section>
-      
     </div>
   )
 }
