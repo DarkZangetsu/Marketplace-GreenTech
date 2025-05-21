@@ -9,9 +9,8 @@ import { useMutation, useQuery } from '@apollo/client';
 import { CREATE_LISTING, UPLOAD_LISTING_IMAGE } from '@/lib/graphql/mutations';
 import { GET_CATEGORIES } from '@/lib/graphql/queries';
 import { toast } from 'react-hot-toast';
-import { conditions, locations } from '@/app/components/constants/CreateListingConstant';
 import Image from 'next/image';
-
+import { conditions, locations } from '@/app/components/constants/CreateListingConstant';
 
 export default function CreateListingPage() {
   const router = useRouter();
@@ -53,12 +52,13 @@ export default function CreateListingPage() {
     }
 
     const parsedUser = JSON.parse(storedUser);
-    console.log('Stored user:', parsedUser);
+    console.log('Stored user:', parsedUser); // Debug log
 
     setToken(storedToken);
     setUser(parsedUser);
   }, [router]);
 
+  // GraphQL queries and mutations with proper auth headers
   const { data: categoriesData, loading: categoriesLoading } = useQuery(GET_CATEGORIES, {
     context: {
       headers: {
@@ -94,6 +94,7 @@ export default function CreateListingPage() {
         [name]: checked
       }));
 
+      // If marking as free, reset price
       if (name === 'isFree' && checked) {
         setFormData(prev => ({
           ...prev,
@@ -107,6 +108,7 @@ export default function CreateListingPage() {
       }));
     }
 
+    // Clear error when field is edited
     if (errors[name]) {
       setErrors(prev => ({
         ...prev,
@@ -118,10 +120,10 @@ export default function CreateListingPage() {
   const handleImageChange = async (e) => {
     const files = Array.from(e.target.files);
 
-
+    // Validate file types and sizes
     const validFiles = files.filter(file => {
       const isValidType = ['image/jpeg', 'image/png', 'image/webp'].includes(file.type);
-      const isValidSize = file.size <= 5 * 1024 * 1024;
+      const isValidSize = file.size <= 5 * 1024 * 1024; // 5MB max
 
       if (!isValidType) {
         toast.error(`${file.name} n'est pas un type d'image valide. Utilisez JPG, PNG ou WebP.`);
@@ -135,6 +137,7 @@ export default function CreateListingPage() {
 
     if (validFiles.length === 0) return;
 
+    // Create preview URLs
     const newPreviews = validFiles.map(file => ({
       file,
       preview: URL.createObjectURL(file)
@@ -200,6 +203,55 @@ export default function CreateListingPage() {
     return Object.keys(newErrors).length === 0;
   };
 
+  const uploadListingImages = async (listingId, images) => {
+    console.log('Starting image uploads for listing ID:', listingId);
+    console.log('Number of images to upload:', images.length);
+
+    if (!token) {
+      console.error('No token available for image upload');
+      throw new Error('Authentication required for image upload');
+    }
+
+    const results = [];
+
+    for (let i = 0; i < images.length; i++) {
+      const file = images[i];
+      const isPrimary = i === 0;
+
+      try {
+        console.log(`Uploading image ${i + 1}/${images.length}`, { fileName: file.name, fileSize: file.size });
+
+        // Important: ne PAS envelopper le fichier dans un autre objet
+        const { data } = await uploadImage({
+          variables: {
+            listingId: listingId,
+            image: file,  // Passer directement le fichier
+            isPrimary: isPrimary
+          }
+        });
+
+        console.log(`Image ${i + 1} upload success:`, data);
+        results.push(data);
+      } catch (error) {
+        console.error(`Error uploading image ${i + 1}:`, error);
+
+        // Log détaillé des erreurs
+        if (error.graphQLErrors) {
+          error.graphQLErrors.forEach(err => {
+            console.error('GraphQL Error:', err.message, err.path, err.extensions);
+          });
+        }
+        if (error.networkError) {
+          console.error('Network Error:', error.networkError);
+        }
+
+        results.push({ error });
+      }
+    }
+
+    return results;
+  };
+
   const handleSubmit = async (e) => {
     e.preventDefault();
 
@@ -248,22 +300,14 @@ export default function CreateListingPage() {
         console.log('Listing created with ID:', listingId);
 
         // Upload images if any
-        if (listingData?.createListing?.listing) {
-          const listingId = listingData.createListing.listing.id;
-          console.log('Listing created with ID:', listingId);
-
-          // Upload images if any
-          if (formData.images.length > 0) {
-            try {
-              const uploadResults = await uploadListingImages(listingId, formData.images, token);
-              console.log('All image uploads completed:', uploadResults);
-            } catch (uploadError) {
-              console.error('Error during image upload process:', uploadError);
-            }
+        if (formData.images.length > 0) {
+          try {
+            const uploadResults = await uploadListingImages(listingId, formData.images);
+            console.log('All image uploads completed:', uploadResults);
+          } catch (uploadError) {
+            console.error('Error during image upload process:', uploadError);
+            // Continue anyway, the listing was created successfully
           }
-
-          toast.success('Annonce créée avec succès !');
-          router.push(`/listings/${listingId}`);
         }
 
         toast.success('Annonce créée avec succès !');
@@ -289,69 +333,6 @@ export default function CreateListingPage() {
     } finally {
       setIsSubmitting(false);
     }
-  };
-
-
-  const uploadListingImages = async (listingId, images, token) => {
-    console.log('Starting image uploads for listing ID:', listingId);
-    console.log('Number of images to upload:', images.length);
-
-    // Vérifiez que le token est valide
-    if (!token) {
-      console.error('No token available for image upload');
-      throw new Error('Authentication required for image upload');
-    }
-
-    // Créez une instance Apollo Client spécifique pour les uploads si nécessaire
-    const uploadClient = new ApolloClient({
-      link: createUploadLink({
-        uri: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/graphql/',
-        headers: {
-          Authorization: `Bearer ${token}`
-        }
-      }),
-      cache: new InMemoryCache()
-    });
-
-    const results = [];
-
-    for (let i = 0; i < images.length; i++) {
-      const file = images[i];
-      const isPrimary = i === 0;
-
-      try {
-        console.log(`Uploading image ${i + 1}/${images.length}`, { fileName: file.name, fileSize: file.size });
-
-        const { data } = await uploadClient.mutate({
-          mutation: UPLOAD_LISTING_IMAGE,
-          variables: {
-            listingId,
-            image: file,
-            isPrimary
-          }
-        });
-
-        console.log(`Image ${i + 1} upload success:`, data);
-        results.push(data);
-      } catch (error) {
-        console.error(`Error uploading image ${i + 1}:`, error);
-
-        // Log detailed error information
-        if (error.graphQLErrors) {
-          error.graphQLErrors.forEach(err => {
-            console.error('GraphQL Error:', err.message, err.path, err.extensions);
-          });
-        }
-        if (error.networkError) {
-          console.error('Network Error:', error.networkError);
-        }
-
-        // Add error to results
-        results.push({ error });
-      }
-    }
-
-    return results;
   };
 
   if (!isClient) {

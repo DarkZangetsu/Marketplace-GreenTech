@@ -120,4 +120,4 @@ export const UPLOAD_LISTING_IMAGE = gql`
       errors
     }
   }
-`; 
+`;

@@ -1,7 +1,7 @@
 import { ApolloClient, InMemoryCache, from } from '@apollo/client';
 import { onError } from '@apollo/client/link/error';
 import { setContext } from '@apollo/client/link/context';
-import createUploadLink from "apollo-upload-client/createUploadLink.mjs"
+import createUploadLink from "apollo-upload-client/public/createUploadLink.js"
 
 // Gestion des erreurs
 const errorLink = onError(({ graphQLErrors, networkError }) => {

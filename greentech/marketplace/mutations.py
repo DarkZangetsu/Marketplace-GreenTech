@@ -1,5 +1,6 @@
 import graphene
 import graphql_jwt
+from graphene_file_upload.scalars import Upload
 
 from .userMutation import ChangePasswordMutation, LoginUserMutation, RegisterUserMutation, UpdateUserProfileMutation
 

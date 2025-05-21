@@ -1,10 +1,6 @@
 import graphene
-import graphql_jwt
 from graphql_jwt.decorators import login_required
-import uuid
 import os
-from django.core.files.base import ContentFile
-import base64
 from graphene_file_upload.scalars import Upload
 
 from .queries import ListingImageType
@@ -23,8 +19,15 @@ class UploadListingImageMutation(graphene.Mutation):
 
     @classmethod
     def mutate(cls, root, info, listing_id, image, is_primary=False):
+        import logging
+        logger = logging.getLogger(__name__)
+        
+        logger.info(f"Début de la mutation UploadListingImage: listing_id={listing_id}, is_primary={is_primary}")
+        logger.info(f"Type d'image reçu: {type(image)}")
+        
         try:
             listing = Listing.objects.get(pk=listing_id)
+            logger.info(f"Listing trouvé: {listing.id} - {listing.title}")
             
             # Create the listing image
             listing_image = ListingImage.objects.create(
@@ -32,6 +35,7 @@ class UploadListingImageMutation(graphene.Mutation):
                 image=image,
                 is_primary=is_primary
             )
+            logger.info(f"Image créée avec l'ID: {listing_image.id}")
             
             # If this is set as primary, unset any other primary images
             if is_primary:
@@ -41,6 +45,7 @@ class UploadListingImageMutation(graphene.Mutation):
                 ).exclude(
                     id=listing_image.id
                 ).update(is_primary=False)
+                logger.info("Autres images primaires réinitialisées")
             
             return UploadListingImageMutation(
                 success=True,
@@ -48,11 +53,13 @@ class UploadListingImageMutation(graphene.Mutation):
             )
             
         except Listing.DoesNotExist:
+            logger.error(f"Listing non trouvé avec ID: {listing_id}")
             return UploadListingImageMutation(
                 success=False,
                 errors=["Listing not found"]
             )
         except Exception as e:
+            logger.error(f"Erreur lors de l'upload d'image: {str(e)}", exc_info=True)
             return UploadListingImageMutation(
                 success=False,
                 errors=[str(e)]
