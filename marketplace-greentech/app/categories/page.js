@@ -6,7 +6,7 @@ import { GET_CATEGORIES } from '@/lib/graphql/queries';
 import Link from 'next/link';
 import { Search, Filter, Grid, List, Hammer, Trees, Zap, Droplet, Scissors, Wrench, PaintBucket, Plus } from 'lucide-react';
 
-// Mapping des icônes pour les catégories
+
 const categoryIcons = {
   construction: Hammer,
   bois: Trees,
@@ -18,9 +18,8 @@ const categoryIcons = {
   autres: Plus
 };
 
-// Couleurs uniformisées avec teinte verte pour tous
 const categoryColors = {
-  default: { bg: 'bg-green-50', text: 'text-green-600', border: 'border-green-200' }
+  default: { bg: 'bg-green-50', text: 'text-green-600', border: 'border-white' }
 };
 
 export default function CategoriesPage() {

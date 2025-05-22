@@ -439,26 +439,11 @@ export const EditListingModal = ({ listing, isOpen, onClose, onUpdate }) => {
                           Par e-mail
                         </label>
                       </div>
-
-                      <div className="flex items-center">
-                        <input
-                          id="both"
-                          name="contactMethod"
-                          type="radio"
-                          value="both"
-                          checked={formData.contactMethod === 'both'}
-                          onChange={handleInputChange}
-                          className="h-4 w-4 text-green-600 focus:ring-green-500 border-gray-300"
-                        />
-                        <label htmlFor="both" className="ml-3 text-sm font-medium text-gray-700">
-                          Les deux
-                        </label>
-                      </div>
                     </div>
                   </div>
 
                   {/* Phone number */}
-                  {(formData.contactMethod === 'phone' || formData.contactMethod === 'both') && (
+                  {(formData.contactMethod === 'phone') && (
                     <div>
                       <label htmlFor="phoneNumber" className="block text-sm font-medium text-gray-700 mb-1">
                         Numéro de téléphone*
@@ -477,7 +462,7 @@ export const EditListingModal = ({ listing, isOpen, onClose, onUpdate }) => {
                   )}
 
                   {/* Email */}
-                  {(formData.contactMethod === 'email' || formData.contactMethod === 'both') && (
+                  {(formData.contactMethod === 'email') && (
                     <div>
                       <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1">
                         Adresse e-mail*
