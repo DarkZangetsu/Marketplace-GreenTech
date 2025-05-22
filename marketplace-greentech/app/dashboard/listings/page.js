@@ -2,20 +2,18 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useQuery, useMutation, gql } from '@apollo/client';
+import { useQuery, useMutation } from '@apollo/client';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Edit, Trash2, Eye, Plus, AlertCircle, CheckCircle, XCircle, Loader2 } from 'lucide-react';
 import {
   DELETE_LISTING,
   CHANGE_LISTING_STATUS,
-  UPDATE_LISTING
 } from '@/lib/graphql/mutations';
 import Image from 'next/image';
 import toast from 'react-hot-toast';
 import { MY_LISTINGS } from '@/lib/graphql/queries';
-
-
+import { EditListingModal } from '@/app/components/EditListingModal';
 
 // Helper to format price
 const formatPrice = (price, isFree) => {
@@ -41,7 +39,9 @@ export default function UserListingsPage() {
   const router = useRouter();
   const [activeFilter, setActiveFilter] = useState('all');
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  const [showEditModal, setShowEditModal] = useState(false);
   const [listingToDelete, setListingToDelete] = useState(null);
+  const [listingToEdit, setListingToEdit] = useState(null);
   const [currentUserId, setCurrentUserId] = useState(null);
   const [user, setUser] = useState(null);
 
@@ -103,32 +103,32 @@ export default function UserListingsPage() {
   // Normalize status function - corrigée
   const normalizeStatus = (status) => {
     if (!status) return 'active'; // Par défaut
-    
+
     // Convertir en string au cas où ce serait un autre type
     const normalized = String(status).toLowerCase().trim();
-    
+
     // Debug: Log pour voir les statuts reçus
     console.log('Status original:', status, '→ normalized:', normalized);
-    
+
     // Mapping des variantes possibles - correction ici
     const statusMapping = {
       // Active variants
       'active': 'active',
-      
+
       // Sold variants
       'sold': 'sold',
-      
+
       // Inactive variants - CORRECTION: inactive reste inactive
       'inactive': 'inactive', // au lieu de 'inactif'
     };
-    
+
     const result = statusMapping[normalized];
-    
+
     if (!result) {
       console.warn('Statut non reconnu:', normalized, '- utilisation de "active" par défaut');
       return 'active';
     }
-    
+
     console.log('Statut mappé:', normalized, '→', result);
     return result;
   };
@@ -148,7 +148,7 @@ export default function UserListingsPage() {
       const originalStatus = listing.status;
       const normalizedStatus = normalizeStatus(originalStatus);
       console.log(`Annonce ${index + 1}: "${listing.title}" - Status original: "${originalStatus}" → Status normalisé: "${normalizedStatus}"`);
-      
+
       if (counts.hasOwnProperty(normalizedStatus)) {
         counts[normalizedStatus]++;
       } else {
@@ -166,28 +166,28 @@ export default function UserListingsPage() {
   // Filter listings based on status
   const getFilteredListings = () => {
     console.log('Filtre actuel:', activeFilter);
-    
+
     if (activeFilter === 'all') {
       console.log('Affichage de toutes les annonces:', userListings.length);
       return userListings;
     }
-    
+
     const filtered = userListings.filter(listing => {
       const listingStatus = normalizeStatus(listing.status);
       const matches = listingStatus === activeFilter;
-      
+
       if (matches) {
         console.log(`✅ Annonce "${listing.title}" correspond au filtre "${activeFilter}" (statut: "${listing.status}" → "${listingStatus}")`);
       }
-      
+
       return matches;
     });
-    
+
     console.log(`Résultat du filtrage pour "${activeFilter}": ${filtered.length} annonces trouvées`);
     filtered.forEach(listing => {
       console.log(`- "${listing.title}" (statut: "${listing.status}")`);
     });
-    
+
     return filtered;
   };
 
@@ -196,6 +196,11 @@ export default function UserListingsPage() {
   const handleDeleteClick = (listing) => {
     setListingToDelete(listing);
     setShowDeleteModal(true);
+  };
+
+  const handleEditClick = (listing) => {
+    setListingToEdit(listing);
+    setShowEditModal(true);
   };
 
   const confirmDelete = async () => {
@@ -227,10 +232,19 @@ export default function UserListingsPage() {
     }
   };
 
+  const handleEditModalClose = () => {
+    setShowEditModal(false);
+    setListingToEdit(null);
+  };
+
+  const handleEditUpdate = () => {
+    refetch(); // Refresh the listings after update
+  };
+
   // Status badge component
   const StatusBadge = ({ status, listingId }) => {
     const normalizedStatus = normalizeStatus(status);
-    
+
     const getStatusInfo = (status) => {
       switch (status) {
         case 'active':
@@ -269,7 +283,7 @@ export default function UserListingsPage() {
           <IconComponent size={12} className="mr-1" />
           {statusInfo.label}
         </span>
-        
+
         {/* Dropdown pour changer le statut */}
         <select
           onChange={(e) => {
@@ -300,11 +314,10 @@ export default function UserListingsPage() {
   // Tab component
   const TabButton = ({ filter, label, count, isActive, onClick }) => (
     <button
-      className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
-        isActive 
-          ? 'bg-green-100 text-green-800 border border-green-200' 
-          : 'bg-gray-100 text-gray-700 hover:bg-gray-200 border border-transparent'
-      }`}
+      className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${isActive
+        ? 'bg-green-100 text-green-800 border border-green-200'
+        : 'bg-gray-100 text-gray-700 hover:bg-gray-200 border border-transparent'
+        }`}
       onClick={() => onClick(filter)}
     >
       {label} ({count})
@@ -403,13 +416,13 @@ export default function UserListingsPage() {
 
         {/* Current filter indicator */}
         <div className="text-sm text-gray-600">
-          Affichage de {filteredListings.length} annonce{filteredListings.length !== 1 ? 's' : ''} 
+          Affichage de {filteredListings.length} annonce{filteredListings.length !== 1 ? 's' : ''}
           {activeFilter !== 'all' && (
             <span className="font-medium">
               {' '}• Filtre: {
                 activeFilter === 'active' ? 'Actives' :
-                activeFilter === 'sold' ? 'Vendues' :
-                activeFilter === 'inactive' ? 'Inactives' : ''
+                  activeFilter === 'sold' ? 'Vendues' :
+                    activeFilter === 'inactive' ? 'Inactives' : ''
               }
             </span>
           )}
@@ -516,13 +529,13 @@ export default function UserListingsPage() {
                           >
                             <Eye size={18} />
                           </Link>
-                          <Link
-                            href={`/listings/edit/${listing.id}`}
+                          <button
+                            onClick={() => handleEditClick(listing)}
                             className="text-blue-600 hover:text-blue-900 p-1 rounded hover:bg-blue-50 transition-colors"
                             title="Modifier l'annonce"
                           >
                             <Edit size={18} />
-                          </Link>
+                          </button>
                           <button
                             onClick={() => handleDeleteClick(listing)}
                             className="text-red-600 hover:text-red-900 p-1 rounded hover:bg-red-50 transition-colors"
@@ -557,7 +570,7 @@ export default function UserListingsPage() {
               <h3 className="text-lg font-semibold text-gray-900">Confirmer la suppression</h3>
             </div>
             <p className="text-gray-600 mb-6">
-              Êtes-vous sûr de vouloir supprimer l'annonce "<strong>{listingToDelete?.title}</strong>" ? 
+              Êtes-vous sûr de vouloir supprimer l'annonce "<strong>{listingToDelete?.title}</strong>" ?
               Cette action est irréversible et toutes les données associées seront perdues.
             </p>
             <div className="flex justify-end gap-3">
@@ -586,6 +599,12 @@ export default function UserListingsPage() {
           </div>
         </div>
       )}
+      <EditListingModal
+        listing={listingToEdit}
+        isOpen={showEditModal}
+        onClose={handleEditModalClose}
+        onUpdate={handleEditUpdate}
+      />
     </div>
   );
 }
