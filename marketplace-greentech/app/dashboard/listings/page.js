@@ -45,7 +45,7 @@ export default function UserListingsPage() {
   const [currentUserId, setCurrentUserId] = useState(null);
   const [user, setUser] = useState(null);
 
-  // GraphQL queries and mutations - Utilisation de MY_LISTINGS au lieu de GET_ALL_LISTINGS
+  // GraphQL queries and mutations 
   const { data, loading, error, refetch } = useQuery(MY_LISTINGS, {
     errorPolicy: 'all'
   });
