@@ -121,3 +121,64 @@ export const UPLOAD_LISTING_IMAGE = gql`
     }
   }
 `;
+
+
+export const DELETE_LISTING = gql`
+  mutation DeleteListing($id: ID!) {
+    deleteListing(id: $id) {
+      success
+    }
+  }
+`;
+
+export const CHANGE_LISTING_STATUS = gql`
+  mutation ChangeListingStatus($id: ID!, $status: String!) {
+    changeListingStatus(id: $id, status: $status) {
+      success
+      listing {
+        id
+        status
+      }
+    }
+  }
+`;
+
+export const UPDATE_LISTING = gql`
+  mutation UpdateListing($id: ID!, $input: ListingInput!) {
+    updateListing(id: $id, input: $input) {
+      listing {
+        id
+        title
+        description
+        condition
+        quantity
+        unit
+        price
+        isFree
+        location
+        address
+        contactMethod
+        phoneNumber
+        email
+        status
+        createdAt
+        updatedAt
+        userId
+        user {
+          id
+          lastName
+        }
+        category {
+          id
+          name
+        }
+        images {
+          id
+          image
+          createdAt
+          isPrimary
+        }
+      }
+    }
+  }
+`;

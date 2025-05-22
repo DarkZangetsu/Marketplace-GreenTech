@@ -5,9 +5,7 @@ import uuid
 from decimal import Decimal
 
 from .queries import ListingType
-
 from .inputs import ListingInput
-
 from .models import Category, Listing, User
 
 class CreateListingMutation(graphene.Mutation):
@@ -75,13 +73,17 @@ class UpdateListingMutation(graphene.Mutation):
     
     @login_required
     def mutate(self, info, id, input):
+        # Debugging: vérifier l'utilisateur
+        print(f"User from context: {info.context.user}")
+        print(f"User authenticated: {info.context.user.is_authenticated if hasattr(info.context.user, 'is_authenticated') else 'No auth attribute'}")
+        
         user = info.context.user
         
         try:
             listing = Listing.objects.get(id=id)
             
             # Check if the user is the owner of the listing
-            if listing.user.id != user.id and not user.is_staff:
+            if str(listing.user.id) != str(user.id) and not user.is_staff:
                 raise Exception("Permission denied. You can only update your own listings.")
             
             # Update category if provided
@@ -134,17 +136,22 @@ class ChangeListingStatusMutation(graphene.Mutation):
         id = graphene.ID(required=True)
         status = graphene.String(required=True)
 
+    success = graphene.Boolean()
     listing = graphene.Field(ListingType)
     
     @login_required
     def mutate(self, info, id, status):
+        # Debugging: vérifier l'utilisateur
+        print(f"User from context: {info.context.user}")
+        print(f"User authenticated: {info.context.user.is_authenticated if hasattr(info.context.user, 'is_authenticated') else 'No auth attribute'}")
+        
         user = info.context.user
         
         try:
             listing = Listing.objects.get(id=id)
             
             # Check if the user is the owner of the listing
-            if listing.user.id != user.id and not user.is_staff:
+            if str(listing.user.id) != str(user.id) and not user.is_staff:
                 raise Exception("Permission denied. You can only update your own listings.")
             
             # Validate status value
@@ -154,7 +161,7 @@ class ChangeListingStatusMutation(graphene.Mutation):
             listing.status = status
             listing.save()
             
-            return ChangeListingStatusMutation(listing=listing)
+            return ChangeListingStatusMutation(success=True, listing=listing)
             
         except Listing.DoesNotExist:
             raise Exception(f"Listing with ID {id} does not exist")
@@ -170,13 +177,17 @@ class DeleteListingMutation(graphene.Mutation):
     
     @login_required
     def mutate(self, info, id):
+        # Debugging: vérifier l'utilisateur
+        print(f"User from context: {info.context.user}")
+        print(f"User authenticated: {info.context.user.is_authenticated if hasattr(info.context.user, 'is_authenticated') else 'No auth attribute'}")
+        
         user = info.context.user
         
         try:
             listing = Listing.objects.get(id=id)
             
             # Check if the user is the owner of the listing
-            if listing.user.id != user.id and not user.is_staff:
+            if str(listing.user.id) != str(user.id) and not user.is_staff:
                 raise Exception("Permission denied. You can only delete your own listings.")
             
             listing.delete()
