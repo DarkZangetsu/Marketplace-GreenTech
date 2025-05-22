@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 /* eslint-disable react/no-unescaped-entities */
 'use client';
 
@@ -6,75 +7,11 @@ import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { MessageSquare, Send, User, ArrowLeft, Package, Trash2, Archive } from 'lucide-react';
 import { useQuery, useMutation } from '@apollo/client';
-import { GET_CONVERSATION, GET_ME } from '@/lib/graphql/queries';
+import { GET_CONVERSATION, GET_ME, MY_MESSAGES } from '@/lib/graphql/queries';
 import { MARK_MESSAGE_AS_READ, SEND_MESSAGE } from '@/lib/graphql/mutations';
-import { gql } from '@apollo/client';
 import Image from 'next/image';
 
-// Updated GraphQL query
-const MY_MESSAGES = gql`
-  query MyMessages {
-    myMessages(isRead: null) {
-      id
-      message
-      isRead
-      createdAt
-      sender {
-        id
-        username
-        firstName
-        lastName
-        email
-        phoneNumber
-        profilePicture
-        createdAt
-        updatedAt
-        sentMessages {
-          id
-          message
-          isRead
-          createdAt
-        }
-        receivedMessages {
-          id
-          message
-          isRead
-          createdAt
-        }
-      }
-      listing {
-        id
-        title
-        description
-        condition
-        quantity
-        unit
-        price
-        isFree
-        location
-        address
-        contactMethod
-        phoneNumber
-        email
-        status
-        createdAt
-        updatedAt
-        userId
-      }
-      receiver {
-        id
-        username
-        firstName
-        lastName
-        email
-        phoneNumber
-        profilePicture
-        createdAt
-        updatedAt
-      }
-    }
-  }
-`;
+
 
 // Helper to format date
 const formatDate = (dateString) => {

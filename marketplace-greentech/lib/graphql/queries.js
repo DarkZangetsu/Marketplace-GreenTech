@@ -342,14 +342,66 @@ export const GET_CONVERSATION = gql`
   }
 `;
 
-// Query pour récupérer les messages de l'utilisateur
-export const GET_MY_MESSAGES = gql`
-  query GetMyMessages($isRead: Boolean) {
-    myMessages(isRead: $isRead) {
+export const MY_MESSAGES = gql`
+  query MyMessages {
+    myMessages(isRead: null) {
       id
       message
       isRead
       createdAt
+      sender {
+        id
+        username
+        firstName
+        lastName
+        email
+        phoneNumber
+        profilePicture
+        createdAt
+        updatedAt
+        sentMessages {
+          id
+          message
+          isRead
+          createdAt
+        }
+        receivedMessages {
+          id
+          message
+          isRead
+          createdAt
+        }
+      }
+      listing {
+        id
+        title
+        description
+        condition
+        quantity
+        unit
+        price
+        isFree
+        location
+        address
+        contactMethod
+        phoneNumber
+        email
+        status
+        createdAt
+        updatedAt
+        userId
+      }
+      receiver {
+        id
+        username
+        firstName
+        lastName
+        email
+        phoneNumber
+        profilePicture
+        createdAt
+        updatedAt
+      }
     }
   }
 `;

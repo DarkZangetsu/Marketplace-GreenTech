@@ -334,7 +334,7 @@ export default function ListingsPage() {
                           )}
                           <div className="absolute top-2 right-2 bg-white px-2 py-1 rounded-md shadow-sm">
                             <span className="font-medium text-green-600">
-                              {listing.isFree ? 'Gratuit' : `${listing.price} €`}
+                              {listing.isFree ? 'Gratuit' : `${listing.price} Ar`}
                             </span>
                           </div>
                         </div>
@@ -391,7 +391,7 @@ export default function ListingsPage() {
                             <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start">
                               <h3 className="font-semibold text-lg">{listing.title}</h3>
                               <div className="mt-2 sm:mt-0 bg-green-50 px-3 py-1 rounded-full text-green-600 font-medium">
-                                {listing.isFree ? 'Gratuit' : `${listing.price} €`}
+                                {listing.isFree ? 'Gratuit' : `${listing.price} Ar`}
                               </div>
                             </div>
                             <p className="text-gray-600 text-sm mt-2">{listing.description}</p>
