@@ -1,17 +1,21 @@
+/* eslint-disable react/no-unescaped-entities */
 'use client';
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { User, Package, MessageSquare, Heart, Settings, Edit3, Camera } from 'lucide-react';
-import { useMutation } from '@apollo/client';
+import { useMutation, useQuery } from '@apollo/client';
 import { UPDATE_USER_PROFILE } from '@/lib/graphql/mutations';
 import { useRouter } from 'next/navigation';
 import { toast } from 'react-hot-toast';
+import Image from 'next/image';
+import { GET_ALL_LISTINGS, GET_LISTINGS_WITH_MESSAGES } from '@/lib/graphql/queries';
 
 export default function DashboardPage() {
   const router = useRouter();
   const [isEditing, setIsEditing] = useState(false);
   const [user, setUser] = useState(null);
+  const [currentUserId, setCurrentUserId] = useState(null);
   const [editForm, setEditForm] = useState({
     name: '',
     email: '',
@@ -19,7 +23,31 @@ export default function DashboardPage() {
     phone: '',
   });
 
-  // Get user data from localStorage
+  // GraphQL queries avec gestion d'erreur améliorée
+  const { data: listingsData, loading: listingsLoading, error: listingsError } = useQuery(GET_ALL_LISTINGS, {
+    onError: (error) => {
+      console.error('Error fetching listings:', error);
+    }
+  });
+  
+  const { data: messagesData, loading: messagesLoading, error: messagesError } = useQuery(GET_LISTINGS_WITH_MESSAGES, {
+    onError: (error) => {
+      console.error('Error fetching messages:', error);
+    }
+  });
+
+  // Vérifier les erreurs d'authentification
+  useEffect(() => {
+    if (listingsError?.message?.includes('permission') || messagesError?.message?.includes('permission')) {
+      toast.error('Session expirée. Veuillez vous reconnecter.');
+      setTimeout(() => {
+        localStorage.removeItem('token');
+        router.push('/auth/login');
+      }, 1500);
+    }
+  }, [listingsError, messagesError, router]);
+
+  // Récupérer les données utilisateur depuis localStorage
   useEffect(() => {
     const token = localStorage.getItem('token');
     const userData = localStorage.getItem('user');
@@ -30,34 +58,49 @@ export default function DashboardPage() {
     }
 
     if (userData) {
-      const parsedUser = JSON.parse(userData);
-      setUser(parsedUser);
-      setEditForm({
-        name: `${parsedUser.firstName || ''} ${parsedUser.lastName || ''}`.trim(),
-        email: parsedUser.email || '',
-        location: parsedUser.location || '',
-        phone: parsedUser.phoneNumber || '',
-      });
+      try {
+        const parsedUser = JSON.parse(userData);
+        setUser(parsedUser);
+        setCurrentUserId(parsedUser.id);
+        setEditForm({
+          name: `${parsedUser.firstName || ''} ${parsedUser.lastName || ''}`.trim(),
+          email: parsedUser.email || '',
+          location: parsedUser.location || '',
+          phone: parsedUser.phoneNumber || '',
+        });
+      } catch (error) {
+        console.error('Error parsing user data:', error);
+        toast.error('Erreur lors du chargement des données utilisateur');
+        localStorage.removeItem('user');
+        router.push('/auth/login');
+      }
     }
   }, [router]);
 
-  // Update profile mutation
+  // Mutation pour mettre à jour le profil
   const [updateProfile] = useMutation(UPDATE_USER_PROFILE, {
     onCompleted: (data) => {
       if (data.updateUserProfile.success) {
-        // Update localStorage with new user data
         const updatedUser = data.updateUserProfile.user;
         localStorage.setItem('user', JSON.stringify(updatedUser));
         setUser(updatedUser);
         setIsEditing(false);
         toast.success('Profil mis à jour avec succès');
       } else {
-        toast.error(data.updateUserProfile.message);
+        toast.error(data.updateUserProfile.message || 'Erreur lors de la mise à jour du profil');
       }
     },
     onError: (error) => {
       toast.error('Erreur lors de la mise à jour du profil');
       console.error('Update profile error:', error);
+      
+      if (error.message?.includes('permission') || error.message?.includes('authentication')) {
+        toast.error('Session expirée. Veuillez vous reconnecter.');
+        setTimeout(() => {
+          localStorage.removeItem('token');
+          router.push('/auth/login');
+        }, 1500);
+      }
     }
   });
 
@@ -85,6 +128,37 @@ export default function DashboardPage() {
       }
     });
   };
+
+  // Filtrer les données côté frontend par utilisateur connecté
+  const userListings = listingsData?.listings?.filter(listing => 
+    listing.userId === currentUserId || listing.user?.id === currentUserId
+  ) || [];
+  
+  const activeListings = userListings.filter(listing => 
+    listing.status === 'ACTIVE' || listing.status === 'active'
+  );
+
+  // Extraire tous les messages des listings et filtrer pour l'utilisateur connecté
+  const allMessages = messagesData?.listings?.reduce((acc, listing) => {
+    if (listing.messages) {
+      const userMessages = listing.messages.filter(message => 
+        message.sender?.id === currentUserId || message.receiver?.id === currentUserId
+      );
+      return [...acc, ...userMessages];
+    }
+    return acc;
+  }, []) || [];
+
+  const unreadMessages = allMessages.filter(message => 
+    !message.isRead && message.receiver?.id === currentUserId
+  );
+
+  const recentMessages = allMessages
+    .sort((a, b) => new Date(b.createdAt) - new Date(a.createdAt))
+    .slice(0, 3);
+
+  // Favoris (à adapter selon votre structure de données)
+  const favorites = user?.favorites || [];
 
   if (!user) {
     return (
@@ -148,9 +222,11 @@ export default function DashboardPage() {
                   <div className="relative mb-4">
                     <div className="w-24 h-24 bg-gray-200 rounded-full flex items-center justify-center">
                       {user.profilePicture ? (
-                        <img 
+                        <Image
                           src={user.profilePicture} 
-                          alt={user.username} 
+                          alt={user.username || 'Profil'} 
+                          width={96}
+                          height={96}
                           className="w-full h-full rounded-full object-cover"
                         />
                       ) : (
@@ -161,8 +237,8 @@ export default function DashboardPage() {
                       <Camera size={14} />
                     </button>
                   </div>
-                  <h3 className="text-xl font-semibold text-gray-900">{user.username}</h3>
-                  <p className="text-gray-600 text-sm">Membre depuis {new Date(user.createdAt).toLocaleDateString()}</p>
+                  <h3 className="text-xl font-semibold text-gray-900">{user.username || 'Utilisateur'}</h3>
+                  <p className="text-gray-600 text-sm">Membre depuis {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'N/A'}</p>
                 </div>
 
                 {isEditing ? (
@@ -239,7 +315,7 @@ export default function DashboardPage() {
                   <div className="space-y-4">
                     <div>
                       <h4 className="text-sm font-medium text-gray-500">Email</h4>
-                      <p className="text-gray-900">{user.email}</p>
+                      <p className="text-gray-900">{user.email || 'Non renseigné'}</p>
                     </div>
                     
                     <div>
@@ -268,7 +344,9 @@ export default function DashboardPage() {
                   <h3 className="text-lg font-semibold text-gray-900">Annonces actives</h3>
                   <Package className="text-green-600" size={24} />
                 </div>
-                <p className="text-3xl font-bold text-gray-900">{user.listings?.filter(l => l.status === 'active').length || 0}</p>
+                <p className="text-3xl font-bold text-gray-900">
+                  {listingsLoading ? '...' : activeListings.length}
+                </p>
                 <Link href="/dashboard/listings" className="text-green-600 hover:text-green-800 text-sm font-medium mt-2 inline-block">
                   Gérer mes annonces
                 </Link>
@@ -279,7 +357,9 @@ export default function DashboardPage() {
                   <h3 className="text-lg font-semibold text-gray-900">Messages non lus</h3>
                   <MessageSquare className="text-blue-600" size={24} />
                 </div>
-                <p className="text-3xl font-bold text-gray-900">{user.received_messages?.filter(m => !m.is_read).length || 0}</p>
+                <p className="text-3xl font-bold text-gray-900">
+                  {messagesLoading ? '...' : unreadMessages.length}
+                </p>
                 <Link href="/dashboard/messages" className="text-green-600 hover:text-green-800 text-sm font-medium mt-2 inline-block">
                   Voir mes messages
                 </Link>
@@ -290,7 +370,7 @@ export default function DashboardPage() {
                   <h3 className="text-lg font-semibold text-gray-900">Favoris</h3>
                   <Heart className="text-red-600" size={24} />
                 </div>
-                <p className="text-3xl font-bold text-gray-900">{user.favorites?.length || 0}</p>
+                <p className="text-3xl font-bold text-gray-900">{favorites.length}</p>
                 <Link href="/dashboard/favorites" className="text-green-600 hover:text-green-800 text-sm font-medium mt-2 inline-block">
                   Voir mes favoris
                 </Link>
@@ -316,23 +396,41 @@ export default function DashboardPage() {
             {/* Recent Activity */}
             <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
               <h3 className="text-xl font-semibold text-gray-900 mb-6">Activité récente</h3>
-              <div className="space-y-4">
-                {user.received_messages?.slice(0, 3).map((message) => (
-                  <div key={message.id} className="flex items-start gap-4 pb-4 border-b border-gray-100">
-                    <div className="bg-blue-100 p-2 rounded-full">
-                      <MessageSquare size={16} className="text-blue-600" />
-                    </div>
-                    <div>
-                      <p className="text-gray-900">
-                        Nouveau message de <span className="font-medium">{message.sender.username}</span> sur votre annonce
-                      </p>
-                      <p className="text-gray-500 text-sm mt-1">
-                        {new Date(message.createdAt).toLocaleDateString()}
-                      </p>
-                    </div>
-                  </div>
-                ))}
-              </div>
+              
+              {messagesError ? (
+                <div className="text-center py-6">
+                  <p className="text-gray-500">Impossible de charger les messages</p>
+                  <button 
+                    onClick={() => window.location.reload()}
+                    className="text-green-600 hover:text-green-800 text-sm font-medium mt-2"
+                  >
+                    Réessayer
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-4">
+                  {recentMessages.length > 0 ? (
+                    recentMessages.map((message) => (
+                      <div key={message.id} className="flex items-start gap-4 pb-4 border-b border-gray-100">
+                        <div className="bg-blue-100 p-2 rounded-full">
+                          <MessageSquare size={16} className="text-blue-600" />
+                        </div>
+                        <div>
+                          <p className="text-gray-900">
+                            {message.isRead ? 'Message lu' : 'Nouveau message'}
+                            {message.sender?.id === currentUserId ? ' envoyé' : ' reçu'}
+                          </p>
+                          <p className="text-gray-500 text-sm mt-1">
+                            {new Date(message.createdAt).toLocaleDateString()}
+                          </p>
+                        </div>
+                      </div>
+                    ))
+                  ) : (
+                    <p className="text-gray-500 text-center py-4">Aucune activité récente</p>
+                  )}
+                </div>
+              )}
               
               <div className="mt-6 text-center">
                 <Link href="/dashboard/activity" className="text-green-600 hover:text-green-800 text-sm font-medium">
@@ -345,4 +443,4 @@ export default function DashboardPage() {
       </div>
     </div>
   );
-} 
+}

@@ -51,7 +51,7 @@ export default function Listings() {
                   <div className="relative h-48 w-full bg-gray-200">
                     {listing.images && listing.images.length > 0 ? (
                       <Image
-                        src={listing.images[0].image}
+                        src={`http://localhost:8000/media/${listing.images[0].image}`}
                         alt={listing.title}
                         fill
                         className="object-cover"

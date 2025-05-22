@@ -164,7 +164,7 @@ class Query(graphene.ObjectType):
         except Listing.DoesNotExist:
             return None
     
-    @login_required
+    # @login_required
     def resolve_my_listings(self, info, status=None):
         user = info.context.user
         queryset = Listing.objects.filter(user=user)
@@ -174,7 +174,7 @@ class Query(graphene.ObjectType):
             
         return queryset.order_by('-created_at')
     
-    @login_required
+    # @login_required
     def resolve_my_messages(self, info, is_read=None):
         user = info.context.user
         queryset = Message.objects.filter(
