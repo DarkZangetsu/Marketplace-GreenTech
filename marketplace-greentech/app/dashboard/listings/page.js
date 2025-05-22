@@ -2,17 +2,20 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { useQuery, useMutation } from '@apollo/client';
+import { useQuery, useMutation, gql } from '@apollo/client';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { Edit, Trash2, Eye, Plus, AlertCircle, CheckCircle, XCircle, Loader2 } from 'lucide-react';
-import { GET_ALL_LISTINGS } from '@/lib/graphql/queries';
 import {
   DELETE_LISTING,
   CHANGE_LISTING_STATUS,
   UPDATE_LISTING
 } from '@/lib/graphql/mutations';
 import Image from 'next/image';
+import toast from 'react-hot-toast';
+import { MY_LISTINGS } from '@/lib/graphql/queries';
+
+
 
 // Helper to format price
 const formatPrice = (price, isFree) => {
@@ -39,34 +42,35 @@ export default function UserListingsPage() {
   const [activeFilter, setActiveFilter] = useState('all');
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [listingToDelete, setListingToDelete] = useState(null);
-  const [deleteSuccess, setDeleteSuccess] = useState(false);
   const [currentUserId, setCurrentUserId] = useState(null);
   const [user, setUser] = useState(null);
 
-  // GraphQL queries and mutations
-  const { data, loading, error, refetch } = useQuery(GET_ALL_LISTINGS, {
+  // GraphQL queries and mutations - Utilisation de MY_LISTINGS au lieu de GET_ALL_LISTINGS
+  const { data, loading, error, refetch } = useQuery(MY_LISTINGS, {
     errorPolicy: 'all'
   });
 
   const [deleteListing, { loading: deleteLoading }] = useMutation(DELETE_LISTING, {
     onCompleted: (data) => {
       if (data.deleteListing.success) {
-        setDeleteSuccess(true);
+        toast.success('L\'annonce a été supprimée avec succès');
         refetch(); // Refresh the listings
-        setTimeout(() => setDeleteSuccess(false), 3000);
       }
     },
     onError: (error) => {
       console.error('Erreur lors de la suppression:', error);
+      toast.error('Erreur lors de la suppression de l\'annonce');
     }
   });
 
   const [changeListingStatus] = useMutation(CHANGE_LISTING_STATUS, {
     onCompleted: () => {
+      toast.success('Statut de l\'annonce mis à jour');
       refetch(); // Refresh the listings
     },
     onError: (error) => {
       console.error('Erreur lors du changement de statut:', error);
+      toast.error('Erreur lors du changement de statut');
     }
   });
 
@@ -93,15 +97,101 @@ export default function UserListingsPage() {
     }
   }, [router]);
 
-  // Filter listings for current user
-  const userListings = data?.listings?.filter(listing =>
-    listing.userId === currentUserId || listing.user?.id === currentUserId
-  ) || [];
+  // Utilisation de myListings au lieu de filtrer manuellement
+  const userListings = data?.myListings || [];
+
+  // Normalize status function - corrigée
+  const normalizeStatus = (status) => {
+    if (!status) return 'active'; // Par défaut
+    
+    // Convertir en string au cas où ce serait un autre type
+    const normalized = String(status).toLowerCase().trim();
+    
+    // Debug: Log pour voir les statuts reçus
+    console.log('Status original:', status, '→ normalized:', normalized);
+    
+    // Mapping des variantes possibles - correction ici
+    const statusMapping = {
+      // Active variants
+      'active': 'active',
+      
+      // Sold variants
+      'sold': 'sold',
+      
+      // Inactive variants - CORRECTION: inactive reste inactive
+      'inactive': 'inactive', // au lieu de 'inactif'
+    };
+    
+    const result = statusMapping[normalized];
+    
+    if (!result) {
+      console.warn('Statut non reconnu:', normalized, '- utilisation de "active" par défaut');
+      return 'active';
+    }
+    
+    console.log('Statut mappé:', normalized, '→', result);
+    return result;
+  };
+
+  // Calculate counts for each status
+  const getStatusCounts = () => {
+    const counts = {
+      all: userListings.length,
+      active: 0,
+      sold: 0,
+      inactive: 0
+    };
+
+    // Debug: Log tous les statuts des annonces
+    console.log('Toutes les annonces avec leurs statuts:');
+    userListings.forEach((listing, index) => {
+      const originalStatus = listing.status;
+      const normalizedStatus = normalizeStatus(originalStatus);
+      console.log(`Annonce ${index + 1}: "${listing.title}" - Status original: "${originalStatus}" → Status normalisé: "${normalizedStatus}"`);
+      
+      if (counts.hasOwnProperty(normalizedStatus)) {
+        counts[normalizedStatus]++;
+      } else {
+        console.warn('Statut non reconnu:', normalizedStatus, 'pour l\'annonce:', listing.title);
+        counts.active++; // Fallback
+      }
+    });
+
+    console.log('Compteurs finaux:', counts);
+    return counts;
+  };
+
+  const statusCounts = getStatusCounts();
 
   // Filter listings based on status
-  const filteredListings = activeFilter === 'all'
-    ? userListings
-    : userListings.filter(listing => listing.status === activeFilter);
+  const getFilteredListings = () => {
+    console.log('Filtre actuel:', activeFilter);
+    
+    if (activeFilter === 'all') {
+      console.log('Affichage de toutes les annonces:', userListings.length);
+      return userListings;
+    }
+    
+    const filtered = userListings.filter(listing => {
+      const listingStatus = normalizeStatus(listing.status);
+      const matches = listingStatus === activeFilter;
+      
+      if (matches) {
+        console.log(`✅ Annonce "${listing.title}" correspond au filtre "${activeFilter}" (statut: "${listing.status}" → "${listingStatus}")`);
+      }
+      
+      return matches;
+    });
+    
+    console.log(`Résultat du filtrage pour "${activeFilter}": ${filtered.length} annonces trouvées`);
+    filtered.forEach(listing => {
+      console.log(`- "${listing.title}" (statut: "${listing.status}")`);
+    });
+    
+    return filtered;
+  };
+
+  const filteredListings = getFilteredListings();
 
   const handleDeleteClick = (listing) => {
     setListingToDelete(listing);
@@ -139,8 +229,10 @@ export default function UserListingsPage() {
 
   // Status badge component
   const StatusBadge = ({ status, listingId }) => {
+    const normalizedStatus = normalizeStatus(status);
+    
     const getStatusInfo = (status) => {
-      switch (status?.toLowerCase()) {
+      switch (status) {
         case 'active':
           return {
             color: 'bg-green-100 text-green-800',
@@ -153,28 +245,22 @@ export default function UserListingsPage() {
             icon: CheckCircle,
             label: 'Vendue'
           };
-        case 'expired':
+        case 'inactive':
           return {
             color: 'bg-gray-100 text-gray-800',
             icon: XCircle,
-            label: 'Expirée'
-          };
-        case 'pending':
-          return {
-            color: 'bg-yellow-100 text-yellow-800',
-            icon: AlertCircle,
-            label: 'En attente'
+            label: 'Inactive'
           };
         default:
           return {
-            color: 'bg-gray-100 text-gray-800',
+            color: 'bg-yellow-100 text-yellow-800',
             icon: AlertCircle,
-            label: status || 'Inconnu'
+            label: 'Inconnu'
           };
       }
     };
 
-    const statusInfo = getStatusInfo(status);
+    const statusInfo = getStatusInfo(normalizedStatus);
     const IconComponent = statusInfo.icon;
 
     return (
@@ -183,20 +269,47 @@ export default function UserListingsPage() {
           <IconComponent size={12} className="mr-1" />
           {statusInfo.label}
         </span>
-        {status?.toLowerCase() === 'active' && (
-          <select
-            onChange={(e) => handleStatusChange(listingId, e.target.value)}
-            className="text-xs border rounded px-1 py-0.5"
-            defaultValue=""
-          >
-            <option value="" disabled>Changer</option>
+        
+        {/* Dropdown pour changer le statut */}
+        <select
+          onChange={(e) => {
+            if (e.target.value) {
+              handleStatusChange(listingId, e.target.value);
+              // Reset select to default
+              e.target.value = '';
+            }
+          }}
+          className="text-xs border border-gray-300 rounded px-2 py-1 bg-white hover:bg-gray-50"
+          defaultValue=""
+        >
+          <option value="" disabled>Modifier</option>
+          {normalizedStatus !== 'active' && (
+            <option value="active">Marquer comme active</option>
+          )}
+          {normalizedStatus !== 'sold' && (
             <option value="sold">Marquer comme vendue</option>
-            <option value="expired">Marquer comme expirée</option>
-          </select>
-        )}
+          )}
+          {normalizedStatus !== 'inactive' && (
+            <option value="inactive">Marquer comme inactive</option>
+          )}
+        </select>
       </div>
     );
   };
+
+  // Tab component
+  const TabButton = ({ filter, label, count, isActive, onClick }) => (
+    <button
+      className={`px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+        isActive 
+          ? 'bg-green-100 text-green-800 border border-green-200' 
+          : 'bg-gray-100 text-gray-700 hover:bg-gray-200 border border-transparent'
+      }`}
+      onClick={() => onClick(filter)}
+    >
+      {label} ({count})
+    </button>
+  );
 
   if (loading || !currentUserId) {
     return (
@@ -216,7 +329,7 @@ export default function UserListingsPage() {
           <p>Erreur lors du chargement des annonces: {error.message}</p>
           <button
             onClick={() => refetch()}
-            className="mt-2 text-sm underline"
+            className="mt-2 text-sm underline hover:no-underline"
           >
             Réessayer
           </button>
@@ -224,6 +337,19 @@ export default function UserListingsPage() {
       </div>
     );
   }
+
+  const getEmptyStateMessage = () => {
+    switch (activeFilter) {
+      case 'active':
+        return "Vous n'avez pas d'annonces actives.";
+      case 'sold':
+        return "Vous n'avez pas d'annonces vendues.";
+      case 'inactive':
+        return "Vous n'avez pas d'annonces inactives.";
+      default:
+        return "Vous n'avez pas encore créé d'annonces.";
+    }
+  };
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -233,7 +359,7 @@ export default function UserListingsPage() {
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Mes annonces</h1>
             <p className="text-gray-600 mt-1">
-              Gérez toutes vos annonces ({userListings.length})
+              Gérez toutes vos annonces ({statusCounts.all})
             </p>
           </div>
 
@@ -243,46 +369,50 @@ export default function UserListingsPage() {
           </Link>
         </div>
 
-        {/* Success message */}
-        {deleteSuccess && (
-          <div className="bg-green-50 border border-green-200 text-green-700 px-4 py-3 rounded-md flex items-center">
-            <CheckCircle size={18} className="mr-2" />
-            <span>L'annonce a été supprimée avec succès.</span>
-          </div>
-        )}
-
-        {/* Filters */}
+        {/* Filters/Tabs */}
         <div className="flex flex-wrap gap-2 border-b border-gray-200 pb-4">
-          <button
-            className={`px-4 py-2 rounded-md text-sm font-medium ${activeFilter === 'all' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
-            onClick={() => setActiveFilter('all')}
-          >
-            Toutes ({userListings.length})
-          </button>
-          <button
-            className={`px-4 py-2 rounded-md text-sm font-medium ${activeFilter === 'active' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
-            onClick={() => setActiveFilter('active')}
-          >
-            Actives ({userListings.filter(l => l.status?.toLowerCase() === 'active').length})
-          </button>
-          <button
-            className={`px-4 py-2 rounded-md text-sm font-medium ${activeFilter === 'sold' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
-            onClick={() => setActiveFilter('sold')}
-          >
-            Vendues ({userListings.filter(l => l.status?.toLowerCase() === 'sold').length})
-          </button>
-          <button
-            className={`px-4 py-2 rounded-md text-sm font-medium ${activeFilter === 'expired' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
-            onClick={() => setActiveFilter('expired')}
-          >
-            Expirées ({userListings.filter(l => l.status?.toLowerCase() === 'expired').length})
-          </button>
-          <button
-            className={`px-4 py-2 rounded-md text-sm font-medium ${activeFilter === 'pending' ? 'bg-green-100 text-green-800' : 'bg-gray-100 text-gray-700 hover:bg-gray-200'}`}
-            onClick={() => setActiveFilter('pending')}
-          >
-            En attente ({userListings.filter(l => l.status?.toLowerCase() === 'pending').length})
-          </button>
+          <TabButton
+            filter="all"
+            label="Toutes"
+            count={statusCounts.all}
+            isActive={activeFilter === 'all'}
+            onClick={setActiveFilter}
+          />
+          <TabButton
+            filter="active"
+            label="Actives"
+            count={statusCounts.active}
+            isActive={activeFilter === 'active'}
+            onClick={setActiveFilter}
+          />
+          <TabButton
+            filter="sold"
+            label="Vendues"
+            count={statusCounts.sold}
+            isActive={activeFilter === 'sold'}
+            onClick={setActiveFilter}
+          />
+          <TabButton
+            filter="inactive"
+            label="Inactives"
+            count={statusCounts.inactive}
+            isActive={activeFilter === 'inactive'}
+            onClick={setActiveFilter}
+          />
+        </div>
+
+        {/* Current filter indicator */}
+        <div className="text-sm text-gray-600">
+          Affichage de {filteredListings.length} annonce{filteredListings.length !== 1 ? 's' : ''} 
+          {activeFilter !== 'all' && (
+            <span className="font-medium">
+              {' '}• Filtre: {
+                activeFilter === 'active' ? 'Actives' :
+                activeFilter === 'sold' ? 'Vendues' :
+                activeFilter === 'inactive' ? 'Inactives' : ''
+              }
+            </span>
+          )}
         </div>
 
         {/* Listings */}
@@ -293,20 +423,14 @@ export default function UserListingsPage() {
             </div>
             <h3 className="text-lg font-medium text-gray-900 mb-2">Aucune annonce trouvée</h3>
             <p className="text-gray-600 max-w-md mx-auto mb-6">
-              {activeFilter === 'all'
-                ? "Vous n'avez pas encore créé d'annonces."
-                : `Vous n'avez pas d'annonces ${activeFilter === 'active' ? 'actives' :
-                  activeFilter === 'sold' ? 'vendues' :
-                    activeFilter === 'expired' ? 'expirées' :
-                      'en attente'
-                }.`}
+              {getEmptyStateMessage()}
             </p>
             <Link href="/listings/create" className="btn btn-primary">
               Créer une annonce
             </Link>
           </div>
         ) : (
-          <div className="bg-white border border-gray-200 rounded-lg overflow-hidden">
+          <div className="bg-white border border-gray-200 rounded-lg overflow-hidden shadow-sm">
             <div className="overflow-x-auto">
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
@@ -336,26 +460,26 @@ export default function UserListingsPage() {
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
                   {filteredListings.map((listing) => (
-                    <tr key={listing.id} className="hover:bg-gray-50">
+                    <tr key={listing.id} className="hover:bg-gray-50 transition-colors">
                       <td className="px-6 py-4 whitespace-nowrap">
                         <div className="flex items-center">
-                          <div className="flex-shrink-0 h-10 w-10 bg-gray-200 rounded overflow-hidden">
-                            {listing.images && listing.images.length > 0 ? (
+                          <div className="flex-shrink-0 h-12 w-12 bg-gray-200 rounded-lg overflow-hidden">
+                            {listing.primaryImage ? (
                               <Image
-                                src={`http://localhost:8000/media/${listing.images.find(img => img.isPrimary)?.image || listing.images[0]?.image}`}
+                                src={`http://localhost:8000/media/${listing.primaryImage.image}`}
                                 alt={listing.title}
-                                width={40}
-                                height={40}
+                                width={48}
+                                height={48}
                                 className="h-full w-full object-cover"
                               />
                             ) : (
                               <div className="h-full w-full flex items-center justify-center text-gray-500 text-xs">
-                                Image
+                                <AlertCircle size={20} />
                               </div>
                             )}
                           </div>
                           <div className="ml-4">
-                            <div className="text-sm font-medium text-gray-900 max-w-48 truncate">
+                            <div className="text-sm font-medium text-gray-900 max-w-48 truncate" title={listing.title}>
                               {listing.title}
                             </div>
                             <div className="text-sm text-gray-500">
@@ -365,12 +489,12 @@ export default function UserListingsPage() {
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">
+                        <div className="text-sm font-medium text-gray-900">
                           {formatPrice(listing.price, listing.isFree)}
                         </div>
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap">
-                        <div className="text-sm text-gray-900">
+                        <div className="text-sm text-gray-500">
                           {formatDate(listing.createdAt)}
                         </div>
                       </td>
@@ -380,28 +504,28 @@ export default function UserListingsPage() {
                       <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                         {listing.quantity} {listing.unit}
                       </td>
-                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 max-w-32 truncate">
+                      <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500 max-w-32 truncate" title={listing.location}>
                         {listing.location}
                       </td>
                       <td className="px-6 py-4 whitespace-nowrap text-right text-sm font-medium">
                         <div className="flex justify-end space-x-2">
                           <Link
                             href={`/listings/${listing.id}`}
-                            className="text-gray-600 hover:text-gray-900"
+                            className="text-gray-600 hover:text-gray-900 p-1 rounded hover:bg-gray-100 transition-colors"
                             title="Voir l'annonce"
                           >
                             <Eye size={18} />
                           </Link>
                           <Link
                             href={`/listings/edit/${listing.id}`}
-                            className="text-blue-600 hover:text-blue-900"
+                            className="text-blue-600 hover:text-blue-900 p-1 rounded hover:bg-blue-50 transition-colors"
                             title="Modifier l'annonce"
                           >
                             <Edit size={18} />
                           </Link>
                           <button
                             onClick={() => handleDeleteClick(listing)}
-                            className="text-red-600 hover:text-red-900"
+                            className="text-red-600 hover:text-red-900 p-1 rounded hover:bg-red-50 transition-colors"
                             title="Supprimer l'annonce"
                             disabled={deleteLoading}
                           >
@@ -425,22 +549,28 @@ export default function UserListingsPage() {
       {/* Delete Confirmation Modal */}
       {showDeleteModal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-lg max-w-md w-full p-6">
-            <h3 className="text-lg font-semibold text-gray-900 mb-2">Confirmer la suppression</h3>
+          <div className="bg-white rounded-lg max-w-md w-full p-6 shadow-xl">
+            <div className="flex items-center gap-3 mb-4">
+              <div className="flex-shrink-0 w-10 h-10 bg-red-100 rounded-full flex items-center justify-center">
+                <AlertCircle className="w-6 h-6 text-red-600" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900">Confirmer la suppression</h3>
+            </div>
             <p className="text-gray-600 mb-6">
-              Êtes-vous sûr de vouloir supprimer l'annonce "{listingToDelete?.title}"? Cette action est irréversible.
+              Êtes-vous sûr de vouloir supprimer l'annonce "<strong>{listingToDelete?.title}</strong>" ? 
+              Cette action est irréversible et toutes les données associées seront perdues.
             </p>
             <div className="flex justify-end gap-3">
               <button
                 onClick={() => setShowDeleteModal(false)}
-                className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50"
+                className="px-4 py-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 transition-colors"
                 disabled={deleteLoading}
               >
                 Annuler
               </button>
               <button
                 onClick={confirmDelete}
-                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 flex items-center"
+                className="px-4 py-2 bg-red-600 text-white rounded-md hover:bg-red-700 flex items-center transition-colors"
                 disabled={deleteLoading}
               >
                 {deleteLoading ? (
@@ -449,7 +579,7 @@ export default function UserListingsPage() {
                     Suppression...
                   </>
                 ) : (
-                  'Supprimer'
+                  'Supprimer définitivement'
                 )}
               </button>
             </div>

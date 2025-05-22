@@ -9,7 +9,7 @@ import { UPDATE_USER_PROFILE } from '@/lib/graphql/mutations';
 import { useRouter } from 'next/navigation';
 import { toast } from 'react-hot-toast';
 import Image from 'next/image';
-import { GET_ALL_LISTINGS, GET_LISTINGS_WITH_MESSAGES } from '@/lib/graphql/queries';
+import { GET_ALL_LISTINGS, GET_LISTINGS_WITH_MESSAGES} from '@/lib/graphql/queries';
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -51,6 +51,8 @@ export default function DashboardPage() {
   useEffect(() => {
     const token = localStorage.getItem('token');
     const userData = localStorage.getItem('user');
+
+    console.log("eto tsika zao :", userData)
     
     if (!token) {
       router.push('/auth/login');

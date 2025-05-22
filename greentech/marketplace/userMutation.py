@@ -170,8 +170,6 @@ class ChangePasswordMutation(graphene.Mutation):
 class UpdateUserProfileMutation(graphene.Mutation):
     class Arguments:
         input = UserProfileInput(required=True)
-        # Note: profile_picture upload requires specific handling with Django
-        # which is typically done in the view rather than through GraphQL
 
     user = graphene.Field(UserType)
     success = graphene.Boolean()
@@ -218,7 +216,7 @@ class UpdateUserProfileMutation(graphene.Mutation):
 
 class UploadProfilePictureMutation(graphene.Mutation):
     class Arguments:
-        image_data = graphene.String(required=True)  # Base64 encoded image
+        image_data = graphene.String(required=True)
         
     user = graphene.Field(UserType)
     success = graphene.Boolean()

@@ -4,13 +4,13 @@
 import { useState, use } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
-import { 
-  MapPin, 
-  Calendar, 
-  MessageSquare, 
-  Heart, 
-  Share2, 
-  Flag, 
+import {
+  MapPin,
+  Calendar,
+  MessageSquare,
+  Heart,
+  Share2,
+  Flag,
   ArrowLeft,
   Phone,
   Mail,
@@ -30,14 +30,14 @@ export default function ListingDetailPage({ params }) {
   // Utiliser React.use() pour déballer params
   const unwrappedParams = use(params);
   const { id } = unwrappedParams;
-  
+
   const router = useRouter();
-  
+
   // Fetch listing data from GraphQL API
   const { loading, error, data } = useQuery(GET_LISTING, {
     variables: { id },
   });
-  
+
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [showContactForm, setShowContactForm] = useState(false);
   const [message, setMessage] = useState('');
@@ -48,45 +48,43 @@ export default function ListingDetailPage({ params }) {
   // Handle loading and error states
   if (loading) return <div className="container mx-auto px-4 py-8 flex justify-center"><p>Chargement en cours...</p></div>;
   if (error) return <div className="container mx-auto px-4 py-8 flex justify-center"><p>Erreur de chargement: {error.message}</p></div>;
-  
+
   // Get the listing from the data
   const listing = data?.listing;
-  
+
   // If no listing found
   if (!listing) return <div className="container mx-auto px-4 py-8 flex justify-center"><p>Annonce introuvable</p></div>;
 
   const nextImage = () => {
-    setActiveImageIndex((prev) => 
+    setActiveImageIndex((prev) =>
       prev === listing.images.length - 1 ? 0 : prev + 1
     );
   };
 
   const prevImage = () => {
-    setActiveImageIndex((prev) => 
+    setActiveImageIndex((prev) =>
       prev === 0 ? listing.images.length - 1 : prev - 1
     );
   };
 
   const handleSubmitMessage = async (e) => {
     e.preventDefault();
-    
+
     if (!message.trim()) return;
-    
+
     setIsSending(true);
-    
+
     try {
-      // In a real app, we would send the message to an API
       await new Promise(resolve => setTimeout(resolve, 1000));
-      
+
       // Show success message briefly
       setShowSuccess(true);
       setMessage('');
-      
-      // Redirect to messages page after showing success
+
       setTimeout(() => {
         router.push(`/messages?listing=${id}`);
       }, 2000);
-      
+
     } catch (error) {
       console.error('Error sending message:', error);
     } finally {
@@ -101,32 +99,31 @@ export default function ListingDetailPage({ params }) {
 
   const formatPrice = (price) => {
     if (price === 0 || listing.isFree) return 'Gratuit';
-    return new Intl.NumberFormat('fr-MG', { 
-      style: 'currency', 
+    return new Intl.NumberFormat('fr-MG', {
+      style: 'currency',
       currency: 'MGA',
-      maximumFractionDigits: 0 
+      maximumFractionDigits: 0
     }).format(price);
   };
-  
+
   // Format the date
   const formatDate = (dateString) => {
     const date = new Date(dateString);
     return format(date, "dd MMMM yyyy", { locale: fr });
   };
-  
+
   // Get seller's full name
-  const sellerName = listing.user.firstName && listing.user.lastName 
+  const sellerName = listing.user.firstName && listing.user.lastName
     ? `${listing.user.firstName} ${listing.user.lastName}`
     : listing.user.username;
-  
+
   const memberSince = format(new Date(listing.user.createdAt || new Date()), "MMMM yyyy", { locale: fr });
 
   // Helper function to generate correct image URL
   const getImageUrl = (imagePath) => {
-    // Si l'URL est déjà complète
     if (imagePath.startsWith('http')) {
       return imagePath;
-    } 
+    }
     // Si c'est un chemin relatif
     return `http://localhost:8000/media/${imagePath}`;
   };
@@ -135,7 +132,7 @@ export default function ListingDetailPage({ params }) {
     <div className="container mx-auto px-4 py-8">
       {/* Back button */}
       <div className="mb-6">
-        <button 
+        <button
           onClick={() => router.back()}
           className="flex items-center text-gray-600 hover:text-gray-900"
         >
@@ -143,7 +140,7 @@ export default function ListingDetailPage({ params }) {
           <span>Retour aux annonces</span>
         </button>
       </div>
-      
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
         {/* Left column - Images and details */}
         <div className="lg:col-span-2 space-y-6">
@@ -152,24 +149,24 @@ export default function ListingDetailPage({ params }) {
             <div className="relative aspect-w-16 aspect-h-9 bg-gray-200" style={{ height: '400px' }}>
               {listing.images && listing.images.length > 0 ? (
                 <>
-                  <Image 
+                  <Image
                     src={getImageUrl(listing.images[activeImageIndex].image)}
                     alt={listing.title}
                     fill
                     className="object-cover"
                   />
-                  
+
                   {/* Navigation arrows */}
                   {listing.images.length > 1 && (
                     <>
-                      <button 
+                      <button
                         onClick={prevImage}
                         className="absolute left-2 top-1/2 transform -translate-y-1/2 bg-white/70 rounded-full p-2 hover:bg-white"
                         aria-label="Image précédente"
                       >
                         <ChevronLeft size={24} />
                       </button>
-                      <button 
+                      <button
                         onClick={nextImage}
                         className="absolute right-2 top-1/2 transform -translate-y-1/2 bg-white/70 rounded-full p-2 hover:bg-white"
                         aria-label="Image suivante"
@@ -185,7 +182,7 @@ export default function ListingDetailPage({ params }) {
                 </div>
               )}
             </div>
-            
+
             {/* Thumbnails */}
             {listing.images && listing.images.length > 1 && (
               <div className="flex p-2 overflow-x-auto">
@@ -193,11 +190,10 @@ export default function ListingDetailPage({ params }) {
                   <button
                     key={index}
                     onClick={() => setActiveImageIndex(index)}
-                    className={`flex-shrink-0 w-16 h-16 mr-2 rounded overflow-hidden ${
-                      index === activeImageIndex ? 'ring-2 ring-green-500' : 'opacity-70'
-                    }`}
+                    className={`flex-shrink-0 w-16 h-16 mr-2 rounded overflow-hidden ${index === activeImageIndex ? 'ring-2 ring-green-500' : 'opacity-70'
+                      }`}
                   >
-                    <Image 
+                    <Image
                       src={getImageUrl(image.image)}
                       alt={`${listing.title} - thumbnail ${index + 1}`}
                       width={64}
@@ -209,93 +205,107 @@ export default function ListingDetailPage({ params }) {
               </div>
             )}
           </div>
-          
+
           {/* Listing details */}
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
             <div className="p-6">
-              <h1 className="text-2xl font-bold text-gray-900 mb-2">{listing.title}</h1>
-              
-              <div className="flex flex-wrap items-center text-sm text-gray-500 mb-4 gap-y-2">
-                <div className="flex items-center mr-4">
-                  <MapPin size={16} className="mr-1" />
-                  <span>{listing.location}</span>
+              {/* Header section */}
+              <div className="mb-6">
+                <h1 className="text-2xl font-bold text-gray-900 mb-3">{listing.title}</h1>
+
+                {/* Meta information */}
+                <div className="flex flex-wrap items-center gap-4 text-sm text-gray-500 mb-4">
+                  <div className="flex items-center">
+                    <MapPin size={16} className="mr-1.5" />
+                    <span>{listing.location}</span>
+                  </div>
+                  <div className="flex items-center">
+                    <Calendar size={16} className="mr-1.5" />
+                    <span>Publié le {formatDate(listing.createdAt)}</span>
+                  </div>
+                  <div className="flex items-center">
+                    <svg className="w-4 h-4 mr-1.5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
+                    </svg>
+                    <span>{listing.viewCount || 0} vues</span>
+                  </div>
                 </div>
-                <div className="flex items-center mr-4">
-                  <Calendar size={16} className="mr-1" />
-                  <span>Publié le {formatDate(listing.createdAt)}</span>
-                </div>
+
+                {/* Price section */}
                 <div className="flex items-center">
-                  <svg className="w-4 h-4 mr-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                  </svg>
-                  <span>{listing.viewCount || 0} vues</span>
+                  <span className="text-3xl font-bold text-gray-900">{formatPrice(listing.price)}</span>
+                  {(listing.price === 0 || listing.isFree) && (
+                    <span className="ml-3 px-3 py-1 bg-green-100 text-green-800 text-xs font-medium rounded-full">
+                      Don
+                    </span>
+                  )}
                 </div>
               </div>
-              
-              <div className="flex items-center mb-6">
-                <span className="text-3xl font-bold text-gray-900">{formatPrice(listing.price)}</span>
-                {(listing.price === 0 || listing.isFree) && (
-                  <span className="ml-2 px-2 py-1 bg-green-100 text-green-800 text-xs font-medium rounded-full">Don</span>
-                )}
-              </div>
-              
-              <div className="space-y-6">
-                <div>
-                  <h2 className="text-lg font-semibold text-gray-900 mb-2">Description</h2>
-                  <div className="text-gray-700 whitespace-pre-line">
+
+              {/* Content sections */}
+              <div className="space-y-8">
+                {/* Description */}
+                <section>
+                  <h2 className="text-lg font-semibold text-gray-900 mb-3">Description</h2>
+                  <div className="text-gray-700 leading-relaxed whitespace-pre-line">
                     {listing.description}
                   </div>
-                </div>
-                
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div>
-                    <h2 className="text-lg font-semibold text-gray-900 mb-2">Détails</h2>
-                    <ul className="space-y-2">
-                      <li className="flex justify-between">
+                </section>
+
+                {/* Details and Location grid */}
+                <div className="grid grid-cols-1 lg:grid-cols-2 gap-8">
+                  {/* Details section */}
+                  <section>
+                    <h2 className="text-lg font-semibold text-gray-900 mb-4">Détails</h2>
+                    <div className="space-y-3">
+                      <div className="flex justify-between py-2 border-b border-gray-100">
                         <span className="text-gray-600">Catégorie</span>
-                        <span className="font-medium">{listing.category?.name || 'Non spécifié'}</span>
-                      </li>
-                      <li className="flex justify-between">
+                        <span className="font-medium text-gray-900">{listing.category?.name || 'Non spécifié'}</span>
+                      </div>
+                      <div className="flex justify-between py-2 border-b border-gray-100">
                         <span className="text-gray-600">État</span>
-                        <span className="font-medium">{listing.condition || 'Non spécifié'}</span>
-                      </li>
-                      <li className="flex justify-between">
+                        <span className="font-medium text-gray-900">{listing.condition || 'Non spécifié'}</span>
+                      </div>
+                      <div className="flex justify-between py-2">
                         <span className="text-gray-600">Quantité</span>
-                        <span className="font-medium">{listing.quantity} {listing.unit}</span>
-                      </li>
-                    </ul>
-                  </div>
-                  
-                  <div>
-                    <h2 className="text-lg font-semibold text-gray-900 mb-2">Localisation</h2>
-                    <div className="flex items-start">
-                      <MapPin size={18} className="text-gray-500 mr-2 mt-0.5" />
-                      <div>
-                        <p className="text-gray-700">{listing.location}</p>
-                        {listing.address && <p className="text-gray-500 text-sm">{listing.address}</p>}
+                        <span className="font-medium text-gray-900">{listing.quantity} {listing.unit}</span>
                       </div>
                     </div>
-                  </div>
+                  </section>
+
+                  {/* Location section */}
+                  <section>
+                    <h2 className="text-lg font-semibold text-gray-900 mb-4">Localisation</h2>
+                    <div className="flex items-start space-x-3">
+                      <MapPin size={20} className="text-gray-500 mt-0.5 flex-shrink-0" />
+                      <div className="space-y-1">
+                        <p className="text-gray-900 font-medium">{listing.location}</p>
+                        {listing.address && (
+                          <p className="text-gray-500 text-sm leading-relaxed">{listing.address}</p>
+                        )}
+                      </div>
+                    </div>
+                  </section>
                 </div>
               </div>
             </div>
           </div>
         </div>
-        
+
         {/* Right column - Seller info and actions */}
         <div className="space-y-6">
           {/* Seller card */}
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
             <div className="p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">Vendeur</h2>
-              
+
               <div className="flex items-center mb-4">
                 <div className="w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center mr-3">
                   {listing.user?.profilePicture ? (
                     <Image
                       src={getImageUrl(listing.user.profilePicture)}
-                      alt={sellerName} 
+                      alt={sellerName}
                       width={48}
                       height={48}
                       className="w-full h-full rounded-full object-cover"
@@ -309,7 +319,7 @@ export default function ListingDetailPage({ params }) {
                   <p className="text-gray-500 text-sm">Membre depuis {memberSince}</p>
                 </div>
               </div>
-              
+
               {/* Contact button */}
               {!showContactForm ? (
                 <button
@@ -337,7 +347,7 @@ export default function ListingDetailPage({ params }) {
                     rows={4}
                     required
                   />
-                  
+
                   <div className="flex justify-between">
                     <button
                       type="button"
@@ -346,7 +356,7 @@ export default function ListingDetailPage({ params }) {
                     >
                       Annuler
                     </button>
-                    
+
                     <button
                       type="submit"
                       disabled={isSending}
@@ -357,12 +367,12 @@ export default function ListingDetailPage({ params }) {
                   </div>
                 </form>
               )}
-              
+
               {/* Contact methods if specified */}
               {listing.contactMethod !== 'platform' && (
                 <div className="mt-6 pt-6 border-t border-gray-200">
                   <h3 className="font-medium text-gray-900 mb-3">Coordonnées du vendeur</h3>
-                  
+
                   {listing.contactMethod === 'phone' || listing.contactMethod === 'both' ? (
                     <div className="flex items-center mb-2">
                       <Phone size={16} className="text-gray-500 mr-2" />
@@ -371,7 +381,7 @@ export default function ListingDetailPage({ params }) {
                       </a>
                     </div>
                   ) : null}
-                  
+
                   {listing.contactMethod === 'email' || listing.contactMethod === 'both' ? (
                     <div className="flex items-center">
                       <Mail size={16} className="text-gray-500 mr-2" />
@@ -384,30 +394,29 @@ export default function ListingDetailPage({ params }) {
               )}
             </div>
           </div>
-          
+
           {/* Actions card */}
           <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
             <div className="p-6">
               <h2 className="text-lg font-semibold text-gray-900 mb-4">Actions</h2>
-              
+
               <div className="space-y-3">
                 <button
                   onClick={toggleFavorite}
-                  className={`w-full flex items-center justify-center px-4 py-2 rounded-md ${
-                    isFavorite 
-                      ? 'bg-red-50 text-red-600 border border-red-200' 
+                  className={`w-full flex items-center justify-center px-4 py-2 rounded-md ${isFavorite
+                      ? 'bg-red-50 text-red-600 border border-red-200'
                       : 'bg-gray-50 text-gray-700 border border-gray-200 hover:bg-gray-100'
-                  }`}
+                    }`}
                 >
                   <Heart size={18} className={`mr-2 ${isFavorite ? 'fill-current' : ''}`} />
                   <span>{isFavorite ? 'Retirer des favoris' : 'Ajouter aux favoris'}</span>
                 </button>
-                
+
                 <button className="w-full flex items-center justify-center px-4 py-2 bg-gray-50 text-gray-700 border border-gray-200 rounded-md hover:bg-gray-100">
                   <Share2 size={18} className="mr-2" />
                   <span>Partager l'annonce</span>
                 </button>
-                
+
                 <button className="w-full flex items-center justify-center px-4 py-2 bg-gray-50 text-gray-700 border border-gray-200 rounded-md hover:bg-gray-100">
                   <Flag size={18} className="mr-2" />
                   <span>Signaler l'annonce</span>
@@ -415,7 +424,7 @@ export default function ListingDetailPage({ params }) {
               </div>
             </div>
           </div>
-          
+
           {/* Safety tips */}
           <div className="bg-blue-50 rounded-lg border border-blue-200 p-4">
             <div className="flex items-start">
@@ -435,7 +444,7 @@ export default function ListingDetailPage({ params }) {
           </div>
         </div>
       </div>
-      
+
       {/* Similar listings section would go here */}
     </div>
   );

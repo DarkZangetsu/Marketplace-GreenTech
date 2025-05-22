@@ -28,8 +28,9 @@ class UserProfileInput(graphene.InputObjectType):
     first_name = graphene.String(description="Prénom de l'utilisateur")
     last_name = graphene.String(description="Nom de famille de l'utilisateur")
     phone_number = graphene.String(description="Numéro de téléphone de l'utilisateur")
+    profil_picture = graphene.String(description="Photo de profil de l'utilisateur")
 
 class ListingImageInput(graphene.InputObjectType):
     listing = graphene.ID(required=True)
-    image = graphene.String(required=True)  # Base64 encoded image
+    image = graphene.String(required=True) 
     is_primary = graphene.Boolean()

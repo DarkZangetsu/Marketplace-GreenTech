@@ -226,3 +226,40 @@ export const GET_LISTINGS_WITH_MESSAGES = gql`
     }
   }
 `;
+
+// Query pour récupérer les annonces de l'utilisateur connecté
+export const MY_LISTINGS = gql`
+  query MyListings {
+    myListings(status: null) {
+      id
+      title
+      description
+      condition
+      quantity
+      unit
+      price
+      isFree
+      location
+      address
+      contactMethod
+      phoneNumber
+      email
+      status
+      createdAt
+      updatedAt
+      userId
+      category {
+        id
+        name
+        slug
+        createdAt
+      }
+      primaryImage {
+        id
+        image
+        isPrimary
+        createdAt
+      }
+    }
+  }
+`;

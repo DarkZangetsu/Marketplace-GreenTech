@@ -1,7 +1,8 @@
+/* eslint-disable react/no-unescaped-entities */
 'use client';
 
 import { useState } from 'react';
-import { Save, Bell, Lock, User, Globe, Trash2 } from 'lucide-react';
+import { Save, Bell, Lock, User,  Trash2 } from 'lucide-react';
 
 // Mock user settings
 const mockSettings = {

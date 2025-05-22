@@ -14,6 +14,7 @@ class CreateListingMutation(graphene.Mutation):
 
     listing = graphene.Field(ListingType)
     
+    @login_required
     def mutate(self, info, input):
         try:
             category = Category.objects.get(id=input.category_id)
