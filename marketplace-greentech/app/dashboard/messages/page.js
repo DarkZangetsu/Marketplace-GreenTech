@@ -1,9 +1,80 @@
+/* eslint-disable react/no-unescaped-entities */
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useMemo } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { MessageSquare, Send, User, ArrowLeft, Package, Trash2, Archive } from 'lucide-react';
+import { useQuery, useMutation } from '@apollo/client';
+import { GET_CONVERSATION, GET_ME } from '@/lib/graphql/queries';
+import { MARK_MESSAGE_AS_READ, SEND_MESSAGE } from '@/lib/graphql/mutations';
+import { gql } from '@apollo/client';
+import Image from 'next/image';
+
+// Updated GraphQL query
+const MY_MESSAGES = gql`
+  query MyMessages {
+    myMessages(isRead: null) {
+      id
+      message
+      isRead
+      createdAt
+      sender {
+        id
+        username
+        firstName
+        lastName
+        email
+        phoneNumber
+        profilePicture
+        createdAt
+        updatedAt
+        sentMessages {
+          id
+          message
+          isRead
+          createdAt
+        }
+        receivedMessages {
+          id
+          message
+          isRead
+          createdAt
+        }
+      }
+      listing {
+        id
+        title
+        description
+        condition
+        quantity
+        unit
+        price
+        isFree
+        location
+        address
+        contactMethod
+        phoneNumber
+        email
+        status
+        createdAt
+        updatedAt
+        userId
+      }
+      receiver {
+        id
+        username
+        firstName
+        lastName
+        email
+        phoneNumber
+        profilePicture
+        createdAt
+        updatedAt
+      }
+    }
+  }
+`;
 
 // Helper to format date
 const formatDate = (dateString) => {
@@ -24,154 +95,183 @@ const formatDate = (dateString) => {
   }
 };
 
+// Helper function to get full name
+const getFullName = (user) => {
+  if (user.firstName && user.lastName) {
+    return `${user.firstName} ${user.lastName}`;
+  }
+  return user.username;
+};
+
+// Helper function to generate correct image URL
+const getImageUrl = (imagePath) => {
+  if (!imagePath) return null;
+  if (imagePath.startsWith('http')) {
+    return imagePath;
+  }
+  return `http://localhost:8000/media/${imagePath}`;
+};
+
+// Helper function to group messages into conversations
+const groupMessagesIntoConversations = (messages, currentUserId) => {
+  const conversationMap = new Map();
+  
+  messages.forEach(message => {
+    // Determine the other user (not the current user)
+    const otherUser = message.sender.id === currentUserId ? message.receiver : message.sender;
+    const listingId = message.listing.id;
+    
+    // Create a unique key for each conversation (other user + listing)
+    const conversationKey = `${otherUser.id}-${listingId}`;
+    
+    if (!conversationMap.has(conversationKey)) {
+      conversationMap.set(conversationKey, {
+        id: conversationKey,
+        otherUser,
+        listing: message.listing,
+        messages: [],
+        lastMessage: message,
+        unreadCount: 0
+      });
+    }
+    
+    const conversation = conversationMap.get(conversationKey);
+    conversation.messages.push(message);
+    
+    // Update last message if this message is more recent
+    if (new Date(message.createdAt) > new Date(conversation.lastMessage.createdAt)) {
+      conversation.lastMessage = message;
+    }
+    
+    // Count unread messages (messages received by current user that are unread)
+    if (message.receiver.id === currentUserId && !message.isRead) {
+      conversation.unreadCount++;
+    }
+  });
+  
+  // Convert map to array and sort by last message date
+  return Array.from(conversationMap.values()).sort((a, b) => 
+    new Date(b.lastMessage.createdAt) - new Date(a.lastMessage.createdAt)
+  );
+};
+
 export default function MessagesPage() {
   const searchParams = useSearchParams();
   const listingIdParam = searchParams.get('listing');
   
-  const [conversations, setConversations] = useState([]);
   const [activeConversation, setActiveConversation] = useState(null);
   const [newMessage, setNewMessage] = useState('');
   const [showMobileList, setShowMobileList] = useState(true);
-  const [isLoading, setIsLoading] = useState(true);
-  const [error, setError] = useState(null);
+  const [conversationMessages, setConversationMessages] = useState([]);
 
-  // Fetch conversations from API
+  // GraphQL queries and mutations
+  const { data: userData } = useQuery(GET_ME);
+  const { data: messagesData, loading: messagesLoading, error: messagesError, refetch: refetchMessages } = useQuery(MY_MESSAGES);
+  
+  const { data: conversationData, loading: conversationLoading, refetch: refetchConversation } = useQuery(GET_CONVERSATION, {
+    variables: {
+      userId: activeConversation?.otherUser?.id,
+      listingId: activeConversation?.listing?.id
+    },
+    skip: !activeConversation?.otherUser?.id || !activeConversation?.listing?.id
+  });
+
+  const [sendMessage, { loading: sendingMessage }] = useMutation(SEND_MESSAGE, {
+    onCompleted: () => {
+      setNewMessage('');
+      refetchConversation();
+      refetchMessages();
+    },
+    onError: (error) => {
+      console.error('Error sending message:', error);
+    }
+  });
+
+  const [markAsRead] = useMutation(MARK_MESSAGE_AS_READ, {
+    onCompleted: () => {
+      refetchMessages();
+    }
+  });
+
+  const currentUser = userData?.me;
+  
+  // Group messages into conversations - memoized to prevent infinite re-renders
+  const conversations = useMemo(() => {
+    if (!currentUser || !messagesData?.myMessages) return [];
+    return groupMessagesIntoConversations(messagesData.myMessages, currentUser.id);
+  }, [messagesData?.myMessages, currentUser?.id]);
+
+  // Update conversation messages when conversation data changes
   useEffect(() => {
-    const fetchConversations = async () => {
-      try {
-        setIsLoading(true);
-        const response = await fetch('/api/messages');
-        
-        if (!response.ok) {
-          throw new Error('Failed to fetch messages');
-        }
-        
-        const data = await response.json();
-        setConversations(data.conversations);
-        
-        // If a listing ID is provided in the URL, find and set the corresponding conversation
-        if (listingIdParam) {
-          const conversation = data.conversations.find(c => c.listingId === parseInt(listingIdParam));
-          if (conversation) {
-            setActiveConversation(conversation);
-            setShowMobileList(false);
-            // Mark as read
-            markAsRead(conversation.id);
-          }
-        } else if (data.conversations.length > 0) {
-          setActiveConversation(data.conversations[0]);
-        }
-      } catch (err) {
-        console.error('Error fetching conversations:', err);
-        setError('Impossible de charger les messages. Veuillez réessayer plus tard.');
-      } finally {
-        setIsLoading(false);
+    if (conversationData?.conversation) {
+      setConversationMessages(conversationData.conversation);
+    } else if (activeConversation?.messages) {
+      // Fallback to messages from the grouped conversation
+      setConversationMessages(activeConversation.messages.sort((a, b) => 
+        new Date(a.createdAt) - new Date(b.createdAt)
+      ));
+    }
+  }, [conversationData, activeConversation]);
+
+  // Handle URL parameter for specific listing
+  useEffect(() => {
+    if (listingIdParam && conversations.length > 0) {
+      const conversation = conversations.find(c => c.listing.id === listingIdParam);
+      if (conversation) {
+        setActiveConversation(conversation);
+        setShowMobileList(false);
       }
-    };
-    
-    fetchConversations();
-  }, [listingIdParam]);
+    } else if (conversations.length > 0 && !activeConversation) {
+      setActiveConversation(conversations[0]);
+    }
+  }, [listingIdParam, conversations, activeConversation]);
 
   const handleSendMessage = async (e) => {
     e.preventDefault();
     
-    if (!newMessage.trim()) return;
+    if (!newMessage.trim() || !activeConversation || sendingMessage) return;
     
-    const messageData = {
-      conversationId: activeConversation.id,
-      content: newMessage,
-      timestamp: new Date().toISOString(),
-    };
-    
-    // Optimistically update UI
-    const updatedMessage = {
-      id: Date.now(),
-      content: newMessage,
-      timestamp: new Date().toISOString(),
-      sentByMe: true,
-    };
-    
-    const updatedConversations = conversations.map(conv => {
-      if (conv.id === activeConversation.id) {
-        return {
-          ...conv,
-          messages: [...conv.messages, updatedMessage],
-          lastMessage: {
-            content: newMessage,
-            timestamp: new Date().toISOString(),
-            isRead: true,
-            sentByMe: true,
-          }
-        };
-      }
-      return conv;
-    });
-    
-    setConversations(updatedConversations);
-    setActiveConversation(updatedConversations.find(c => c.id === activeConversation.id));
-    setNewMessage('');
-    
-    // Send to API
     try {
-      const response = await fetch('/api/messages', {
-        method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify(messageData),
+      await sendMessage({
+        variables: {
+          listingId: activeConversation.listing.id,
+          message: newMessage,
+          receiverId: activeConversation.otherUser.id
+        }
       });
-      
-      if (!response.ok) {
-        throw new Error('Failed to send message');
-      }
-    } catch (err) {
-      console.error('Error sending message:', err);
-      // Could show an error toast here
+    } catch (error) {
+      console.error('Error sending message:', error);
     }
   };
 
-  const markAsRead = async (conversationId) => {
-    // Optimistically update UI
-    setConversations(prevConversations => 
-      prevConversations.map(conv => {
-        if (conv.id === conversationId && !conv.lastMessage.isRead) {
-          return {
-            ...conv,
-            lastMessage: {
-              ...conv.lastMessage,
-              isRead: true
-            }
-          };
-        }
-        return conv;
-      })
-    );
-    
-    // Update the server
+  const handleMarkAsRead = async (messageId) => {
     try {
-      const response = await fetch(`/api/messages/${conversationId}/read`, {
-        method: 'POST',
+      await markAsRead({
+        variables: { messageId }
       });
-      
-      if (!response.ok) {
-        throw new Error('Failed to mark message as read');
-      }
-    } catch (err) {
-      console.error('Error marking message as read:', err);
-      // Could show an error toast here
+    } catch (error) {
+      console.error('Error marking message as read:', error);
     }
   };
 
   const handleConversationClick = (conversation) => {
     setActiveConversation(conversation);
-    markAsRead(conversation.id);
     setShowMobileList(false);
+    
+    // Mark unread messages as read
+    if (conversation.unreadCount > 0) {
+      conversation.messages.forEach(message => {
+        if (message.receiver.id === currentUser?.id && !message.isRead) {
+          handleMarkAsRead(message.id);
+        }
+      });
+    }
   };
 
-  const unreadCount = conversations.filter(c => !c.lastMessage.isRead && !c.lastMessage.sentByMe).length;
+  const unreadCount = conversations.reduce((total, conv) => total + (conv.unreadCount || 0), 0);
 
   // Show loading state
-  if (isLoading) {
+  if (messagesLoading) {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="flex flex-col gap-6">
@@ -194,7 +294,7 @@ export default function MessagesPage() {
   }
 
   // Show error state
-  if (error) {
+  if (messagesError) {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="flex flex-col gap-6">
@@ -212,9 +312,9 @@ export default function MessagesPage() {
                 </svg>
               </div>
               <h3 className="text-lg font-medium text-gray-900 mb-2">Erreur</h3>
-              <p className="text-gray-600 mb-4">{error}</p>
+              <p className="text-gray-600 mb-4">{messagesError.message}</p>
               <button 
-                onClick={() => window.location.reload()}
+                onClick={() => refetchMessages()}
                 className="btn btn-primary"
               >
                 Réessayer
@@ -274,21 +374,24 @@ export default function MessagesPage() {
                         <div className="p-4">
                           <div className="flex justify-between items-start mb-1">
                             <h3 className="font-medium text-gray-900 flex items-center">
-                              {conversation.otherUser.name}
-                              {!conversation.lastMessage.isRead && !conversation.lastMessage.sentByMe && (
+                              {getFullName(conversation.otherUser)}
+                              {conversation.unreadCount > 0 && (
                                 <span className="ml-2 w-2 h-2 bg-green-500 rounded-full"></span>
                               )}
                             </h3>
                             <span className="text-xs text-gray-500">
-                              {formatDate(conversation.lastMessage.timestamp)}
+                              {conversation.lastMessage && formatDate(conversation.lastMessage.createdAt)}
                             </span>
                           </div>
-                          <p className="text-sm text-gray-600 line-clamp-1">
-                            {conversation.lastMessage.sentByMe ? 'Vous: ' : ''}{conversation.lastMessage.content}
-                          </p>
+                          {conversation.lastMessage && (
+                            <p className="text-sm text-gray-600 line-clamp-1">
+                              {conversation.lastMessage.sender.id === currentUser?.id ? 'Vous: ' : ''}
+                              {conversation.lastMessage.message}
+                            </p>
+                          )}
                           <div className="mt-2 flex items-center">
                             <Package size={14} className="text-gray-400 mr-1" />
-                            <span className="text-xs text-gray-500">{conversation.listingTitle}</span>
+                            <span className="text-xs text-gray-500">{conversation.listing.title}</span>
                           </div>
                         </div>
                       </li>
@@ -311,15 +414,25 @@ export default function MessagesPage() {
                       >
                         <ArrowLeft size={20} />
                       </button>
-                      <div className="flex-shrink-0 h-10 w-10 bg-gray-200 rounded-full flex items-center justify-center mr-3">
-                        <User size={20} className="text-gray-500" />
+                      <div className="flex-shrink-0 h-10 w-10 bg-gray-200 rounded-full flex items-center justify-center mr-3 overflow-hidden">
+                        {activeConversation.otherUser.profilePicture ? (
+                          <Image 
+                            src={getImageUrl(activeConversation.otherUser.profilePicture)} 
+                            alt={getFullName(activeConversation.otherUser)}
+                            className="w-full h-full object-cover"
+                            width={40}
+                            height={40}
+                          />
+                        ) : (
+                          <User size={20} className="text-gray-500" />
+                        )}
                       </div>
                       <div>
-                        <h3 className="font-medium text-gray-900">{activeConversation.otherUser.name}</h3>
+                        <h3 className="font-medium text-gray-900">{getFullName(activeConversation.otherUser)}</h3>
                         <div className="flex items-center text-xs text-gray-500">
                           <Package size={12} className="mr-1" />
-                          <Link href={`/listings/${activeConversation.listingId}`} className="hover:text-green-600">
-                            {activeConversation.listingTitle}
+                          <Link href={`/listings/${activeConversation.listing.id}`} className="hover:text-green-600">
+                            {activeConversation.listing.title}
                           </Link>
                         </div>
                       </div>
@@ -336,25 +449,38 @@ export default function MessagesPage() {
                   
                   {/* Messages */}
                   <div className="flex-1 overflow-y-auto p-4 space-y-4">
-                    {activeConversation.messages.map(message => (
-                      <div 
-                        key={message.id}
-                        className={`flex ${message.sentByMe ? 'justify-end' : 'justify-start'}`}
-                      >
-                        <div 
-                          className={`max-w-[70%] rounded-lg px-4 py-2 ${
-                            message.sentByMe 
-                              ? 'bg-green-600 text-white' 
-                              : 'bg-gray-100 text-gray-800'
-                          }`}
-                        >
-                          <p className="text-sm">{message.content}</p>
-                          <p className={`text-xs mt-1 ${message.sentByMe ? 'text-green-100' : 'text-gray-500'}`}>
-                            {formatDate(message.timestamp)}
-                          </p>
+                    {conversationLoading ? (
+                      <div className="flex justify-center items-center h-full">
+                        <div className="animate-pulse flex space-x-4 items-center">
+                          <div className="h-2 w-2 bg-green-500 rounded-full"></div>
+                          <div className="h-2 w-2 bg-green-500 rounded-full"></div>
+                          <div className="h-2 w-2 bg-green-500 rounded-full"></div>
                         </div>
                       </div>
-                    ))}
+                    ) : (
+                      conversationMessages.map(message => {
+                        const isFromMe = message.sender.id === currentUser?.id;
+                        return (
+                          <div 
+                            key={message.id}
+                            className={`flex ${isFromMe ? 'justify-end' : 'justify-start'}`}
+                          >
+                            <div 
+                              className={`max-w-[70%] rounded-lg px-4 py-2 ${
+                                isFromMe 
+                                  ? 'bg-green-600 text-white' 
+                                  : 'bg-gray-100 text-gray-800'
+                              }`}
+                            >
+                              <p className="text-sm">{message.message}</p>
+                              <p className={`text-xs mt-1 ${isFromMe ? 'text-green-100' : 'text-gray-500'}`}>
+                                {formatDate(message.createdAt)}
+                              </p>
+                            </div>
+                          </div>
+                        );
+                      })
+                    )}
                   </div>
                   
                   {/* Message input */}
@@ -366,10 +492,12 @@ export default function MessagesPage() {
                         className="flex-1 border border-gray-300 rounded-l-md px-4 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
                         value={newMessage}
                         onChange={(e) => setNewMessage(e.target.value)}
+                        disabled={sendingMessage}
                       />
                       <button
                         type="submit"
-                        className="bg-green-600 text-white px-4 py-2 rounded-r-md hover:bg-green-700"
+                        className="bg-green-600 text-white px-4 py-2 rounded-r-md hover:bg-green-700 disabled:opacity-50"
+                        disabled={sendingMessage || !newMessage.trim()}
                       >
                         <Send size={18} />
                       </button>
@@ -395,4 +523,4 @@ export default function MessagesPage() {
       </div>
     </div>
   );
-} 
+}

@@ -2,20 +2,36 @@
 
 import { useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
+import { useQuery } from '@apollo/client';
+import { GET_ME } from '@/lib/graphql/queries';
 
 export default function MessagesRedirectPage() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const listingId = searchParams.get('listing');
   
+  // Check if user is authenticated
+  const { data: userData, loading } = useQuery(GET_ME, {
+    errorPolicy: 'ignore'
+  });
+  
   useEffect(() => {
-    // Redirect to the dashboard messages page
+    if (loading) return; 
+    
+    if (!userData?.me) {
+      // User not authenticated, redirect to login with return URL
+      const returnUrl = `/messages${listingId ? `?listing=${listingId}` : ''}`;
+      router.push(`/auth/login?redirect=${encodeURIComponent(returnUrl)}`);
+      return;
+    }
+    
+    // User is authenticated, redirect to dashboard messages
     if (listingId) {
       router.push(`/dashboard/messages?listing=${listingId}`);
     } else {
       router.push('/dashboard/messages');
     }
-  }, [router, listingId]);
+  }, [router, listingId, userData, loading]);
 
   return (
     <div className="container mx-auto px-4 py-16">
@@ -25,8 +41,10 @@ export default function MessagesRedirectPage() {
           <div className="h-4 w-4 bg-green-500 rounded-full"></div>
           <div className="h-4 w-4 bg-green-500 rounded-full"></div>
         </div>
-        <p className="text-gray-600 mt-4">Redirection vers vos messages...</p>
+        <p className="text-gray-600 mt-4">
+          {loading ? 'Vérification de l\'authentification...' : 'Redirection vers vos messages...'}
+        </p>
       </div>
     </div>
   );
-} 
+}

@@ -182,3 +182,64 @@ export const UPDATE_LISTING = gql`
     }
   }
 `;
+
+// Mutation pour envoyer un message
+export const SEND_MESSAGE = gql`
+  mutation SendMessage($listingId: ID!, $message: String!, $receiverId: ID!) {
+    sendMessage(listingId: $listingId, message: $message, receiverId: $receiverId) {
+      messageObj {
+        id
+        message
+        isRead
+        createdAt
+        sender {
+          id
+          username
+          firstName
+          lastName
+          email
+          phoneNumber
+          profilePicture
+          createdAt
+          updatedAt
+        }
+        receiver {
+          id
+          username
+          firstName
+          lastName
+          email
+          phoneNumber
+          profilePicture
+          createdAt
+          updatedAt
+        }
+        listing {
+          id
+          title
+          description
+          images {
+            id
+            image
+            isPrimary
+            createdAt
+          }
+        }
+      }
+    }
+  }
+`;
+
+// Mutation pour marquer un message comme lu
+export const MARK_MESSAGE_AS_READ = gql`
+  mutation MarkMessageAsRead($messageId: ID!) {
+    markMessageAsRead(messageId: $messageId) {
+      message {
+        id
+        message
+        isRead
+        createdAt
+      }
+    }
+  }
+`;

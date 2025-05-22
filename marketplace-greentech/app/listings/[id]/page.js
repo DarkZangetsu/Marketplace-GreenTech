@@ -20,11 +20,11 @@ import {
   ChevronRight
 } from 'lucide-react';
 import Image from 'next/image';
-import { useQuery } from '@apollo/client';
+import { useQuery, useMutation } from '@apollo/client';
 import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
-import { GET_LISTING } from '@/lib/graphql/queries';
-
+import { GET_LISTING, GET_ME } from '@/lib/graphql/queries';
+import { SEND_MESSAGE } from '@/lib/graphql/mutations';
 
 export default function ListingDetailPage({ params }) {
   // Utiliser React.use() pour déballer params
@@ -38,12 +38,34 @@ export default function ListingDetailPage({ params }) {
     variables: { id },
   });
 
+  // Fetch current user data
+  const { data: userData } = useQuery(GET_ME);
+
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [showContactForm, setShowContactForm] = useState(false);
   const [message, setMessage] = useState('');
-  const [isSending, setIsSending] = useState(false);
   const [isFavorite, setIsFavorite] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+
+  // GraphQL mutation for sending message
+  const [sendMessage, { loading: isSending }] = useMutation(SEND_MESSAGE, {
+    onCompleted: (data) => {
+      if (data.sendMessage.messageObj) {
+        setShowSuccess(true);
+        setMessage('');
+        
+        setTimeout(() => {
+          router.push(`/dashboard/messages?listing=${id}`);
+        }, 2000);
+      }
+    },
+    onError: (error) => {
+      console.error('Error sending message:', error);
+      // You could show an error toast here
+    }
+  });
+
+  const currentUser = userData?.me;
 
   // Handle loading and error states
   if (loading) return <div className="container mx-auto px-4 py-8 flex justify-center"><p>Chargement en cours...</p></div>;
@@ -70,25 +92,18 @@ export default function ListingDetailPage({ params }) {
   const handleSubmitMessage = async (e) => {
     e.preventDefault();
 
-    if (!message.trim()) return;
-
-    setIsSending(true);
+    if (!message.trim() || !currentUser) return;
 
     try {
-      await new Promise(resolve => setTimeout(resolve, 1000));
-
-      // Show success message briefly
-      setShowSuccess(true);
-      setMessage('');
-
-      setTimeout(() => {
-        router.push(`/messages?listing=${id}`);
-      }, 2000);
-
+      await sendMessage({
+        variables: {
+          listingId: id,
+          message: message.trim(),
+          receiverId: listing.user.id
+        }
+      });
     } catch (error) {
       console.error('Error sending message:', error);
-    } finally {
-      setIsSending(false);
     }
   };
 
@@ -127,6 +142,9 @@ export default function ListingDetailPage({ params }) {
     // Si c'est un chemin relatif
     return `http://localhost:8000/media/${imagePath}`;
   };
+
+  // Check if current user is the owner of the listing
+  const isOwner = currentUser && currentUser.id === listing.user.id;
 
   return (
     <div className="container mx-auto px-4 py-8">
@@ -320,8 +338,31 @@ export default function ListingDetailPage({ params }) {
                 </div>
               </div>
 
-              {/* Contact button */}
-              {!showContactForm ? (
+              {/* Contact section - Show different content based on user status */}
+              {!currentUser ? (
+                // Not logged in
+                <div className="bg-gray-50 border border-gray-200 rounded-md p-4 text-center">
+                  <p className="text-gray-600 mb-3">Connectez-vous pour contacter le vendeur</p>
+                  <Link
+                    href="/auth/login"
+                    className="btn btn-primary"
+                  >
+                    Se connecter
+                  </Link>
+                </div>
+              ) : isOwner ? (
+                // Owner viewing their own listing
+                <div className="bg-blue-50 border border-blue-200 rounded-md p-4 text-center">
+                  <p className="text-blue-700 mb-3">C'est votre annonce</p>
+                  <Link
+                    href={`/dashboard/listings/${id}/edit`}
+                    className="btn btn-primary"
+                  >
+                    Modifier l'annonce
+                  </Link>
+                </div>
+              ) : !showContactForm ? (
+                // Contact button for other users
                 <button
                   onClick={() => setShowContactForm(true)}
                   className="w-full btn btn-primary flex items-center justify-center"
@@ -330,14 +371,16 @@ export default function ListingDetailPage({ params }) {
                   <span>Contacter le vendeur</span>
                 </button>
               ) : showSuccess ? (
+                // Success message
                 <div className="bg-green-50 border border-green-200 rounded-md p-4 text-center">
                   <svg className="w-6 h-6 text-green-600 mx-auto mb-2" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
                   </svg>
                   <p className="text-green-700">Message envoyé avec succès!</p>
-                  <p className="text-green-600 text-sm mt-1">Le vendeur vous répondra bientôt.</p>
+                  <p className="text-green-600 text-sm mt-1">Redirection vers vos messages...</p>
                 </div>
               ) : (
+                // Contact form
                 <form onSubmit={handleSubmitMessage} className="space-y-4">
                   <textarea
                     value={message}
@@ -369,7 +412,7 @@ export default function ListingDetailPage({ params }) {
               )}
 
               {/* Contact methods if specified */}
-              {listing.contactMethod !== 'platform' && (
+              {!isOwner && listing.contactMethod !== 'platform' && (
                 <div className="mt-6 pt-6 border-t border-gray-200">
                   <h3 className="font-medium text-gray-900 mb-3">Coordonnées du vendeur</h3>
 
@@ -396,34 +439,36 @@ export default function ListingDetailPage({ params }) {
           </div>
 
           {/* Actions card */}
-          <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
-            <div className="p-6">
-              <h2 className="text-lg font-semibold text-gray-900 mb-4">Actions</h2>
+          {!isOwner && currentUser && (
+            <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
+              <div className="p-6">
+                <h2 className="text-lg font-semibold text-gray-900 mb-4">Actions</h2>
 
-              <div className="space-y-3">
-                <button
-                  onClick={toggleFavorite}
-                  className={`w-full flex items-center justify-center px-4 py-2 rounded-md ${isFavorite
-                      ? 'bg-red-50 text-red-600 border border-red-200'
-                      : 'bg-gray-50 text-gray-700 border border-gray-200 hover:bg-gray-100'
-                    }`}
-                >
-                  <Heart size={18} className={`mr-2 ${isFavorite ? 'fill-current' : ''}`} />
-                  <span>{isFavorite ? 'Retirer des favoris' : 'Ajouter aux favoris'}</span>
-                </button>
+                <div className="space-y-3">
+                  <button
+                    onClick={toggleFavorite}
+                    className={`w-full flex items-center justify-center px-4 py-2 rounded-md ${isFavorite
+                        ? 'bg-red-50 text-red-600 border border-red-200'
+                        : 'bg-gray-50 text-gray-700 border border-gray-200 hover:bg-gray-100'
+                      }`}
+                  >
+                    <Heart size={18} className={`mr-2 ${isFavorite ? 'fill-current' : ''}`} />
+                    <span>{isFavorite ? 'Retirer des favoris' : 'Ajouter aux favoris'}</span>
+                  </button>
 
-                <button className="w-full flex items-center justify-center px-4 py-2 bg-gray-50 text-gray-700 border border-gray-200 rounded-md hover:bg-gray-100">
-                  <Share2 size={18} className="mr-2" />
-                  <span>Partager l'annonce</span>
-                </button>
+                  <button className="w-full flex items-center justify-center px-4 py-2 bg-gray-50 text-gray-700 border border-gray-200 rounded-md hover:bg-gray-100">
+                    <Share2 size={18} className="mr-2" />
+                    <span>Partager l'annonce</span>
+                  </button>
 
-                <button className="w-full flex items-center justify-center px-4 py-2 bg-gray-50 text-gray-700 border border-gray-200 rounded-md hover:bg-gray-100">
-                  <Flag size={18} className="mr-2" />
-                  <span>Signaler l'annonce</span>
-                </button>
+                  <button className="w-full flex items-center justify-center px-4 py-2 bg-gray-50 text-gray-700 border border-gray-200 rounded-md hover:bg-gray-100">
+                    <Flag size={18} className="mr-2" />
+                    <span>Signaler l'annonce</span>
+                  </button>
+                </div>
               </div>
             </div>
-          </div>
+          )}
 
           {/* Safety tips */}
           <div className="bg-blue-50 rounded-lg border border-blue-200 p-4">

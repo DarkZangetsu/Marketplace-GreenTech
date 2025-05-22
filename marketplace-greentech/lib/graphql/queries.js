@@ -263,3 +263,93 @@ export const MY_LISTINGS = gql`
     }
   }
 `;
+
+
+// Query pour récupérer toutes les conversations de l'utilisateur
+export const GET_MY_CONVERSATIONS = gql`
+  query GetMyConversations {
+    myConversations {
+      id
+      lastMessage {
+        id
+        message
+        isRead
+        createdAt
+        sender {
+          id
+          username
+          firstName
+          lastName
+        }
+      }
+      otherUser {
+        id
+        username
+        firstName
+        lastName
+        profilePicture
+      }
+      listing {
+        id
+        title
+        images {
+          id
+          image
+          isPrimary
+        }
+      }
+      unreadCount
+    }
+  }
+`;
+
+// Query pour récupérer une conversation spécifique
+export const GET_CONVERSATION = gql`
+  query GetConversation($userId: ID!, $listingId: ID!) {
+    conversation(userId: $userId, listingId: $listingId) {
+      id
+      message
+      isRead
+      createdAt
+      listing {
+        id
+        title
+        description
+      }
+      sender {
+        id
+        username
+        firstName
+        lastName
+        email
+        phoneNumber
+        profilePicture
+        createdAt
+        updatedAt
+      }
+      receiver {
+        id
+        username
+        firstName
+        lastName
+        email
+        phoneNumber
+        profilePicture
+        createdAt
+        updatedAt
+      }
+    }
+  }
+`;
+
+// Query pour récupérer les messages de l'utilisateur
+export const GET_MY_MESSAGES = gql`
+  query GetMyMessages($isRead: Boolean) {
+    myMessages(isRead: $isRead) {
+      id
+      message
+      isRead
+      createdAt
+    }
+  }
+`;
