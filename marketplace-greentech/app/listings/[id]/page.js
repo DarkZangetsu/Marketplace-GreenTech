@@ -61,7 +61,6 @@ export default function ListingDetailPage({ params }) {
     },
     onError: (error) => {
       console.error('Error sending message:', error);
-      // You could show an error toast here
     }
   });
 

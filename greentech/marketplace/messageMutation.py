@@ -1,5 +1,7 @@
 import graphene
 from graphql_jwt.decorators import login_required
+from channels.layers import get_channel_layer
+from asgiref.sync import async_to_sync
 
 from .queries import FavoriteType, MessageType
 from .models import User, Listing, Message, Favorite
@@ -36,11 +38,43 @@ class SendMessageMutation(graphene.Mutation):
         
         try:
             message_obj.save()
+            
+            # Envoyer une notification WebSocket au destinataire
+            channel_layer = get_channel_layer()
+            if channel_layer:
+                async_to_sync(channel_layer.group_send)(
+                    f'user_{receiver_id}',
+                    {
+                        'type': 'message_notification',
+                        'message': {
+                            'id': str(message_obj.id),
+                            'message': message_obj.message,
+                            'sender': {
+                                'id': str(message_obj.sender.id),
+                                'username': message_obj.sender.username,
+                                'firstName': message_obj.sender.first_name or '',
+                                'lastName': message_obj.sender.last_name or '',
+                                'profilePicture': message_obj.sender.profile_picture.url if hasattr(message_obj.sender, 'profile_picture') and message_obj.sender.profile_picture else None,
+                            },
+                            'receiver': {
+                                'id': str(message_obj.receiver.id),
+                                'username': message_obj.receiver.username,
+                            },
+                            'listing': {
+                                'id': str(message_obj.listing.id),
+                                'title': message_obj.listing.title,
+                            },
+                            'createdAt': message_obj.created_at.isoformat(),
+                            'isRead': message_obj.is_read,
+                        }
+                    }
+                )
+            
             return SendMessageMutation(message_obj=message_obj)
         except Exception as e:
             raise Exception(f"Error sending message: {str(e)}")
-
-
+        
+        
 class MarkMessageAsReadMutation(graphene.Mutation):
     class Arguments:
         message_id = graphene.ID(required=True)
