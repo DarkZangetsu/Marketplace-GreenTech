@@ -11,56 +11,9 @@ import { MARK_MESSAGE_AS_READ, SEND_MESSAGE } from '@/lib/graphql/mutations';
 import { useWebSocket } from '@/lib/hooks/useWebSocket';
 import Image from 'next/image';
 import Navbar from '@/app/components/Navbar';
+import { StatusIndicator } from '@/app/components/messages/StatusIndicator';
+import { formatDate, formatMessageDate, getFullName, getImageUrl } from '@/app/components/messages/Helper';
 
-// Helper functions
-const formatDate = (dateString) => {
-  const date = new Date(dateString);
-  const now = new Date();
-  const diffTime = Math.abs(now - date);
-  const diffMinutes = Math.floor(diffTime / (1000 * 60));
-  const diffHours = Math.floor(diffTime / (1000 * 60 * 60));
-
-  if (diffMinutes < 1) return 'Maintenant';
-  if (diffMinutes < 60) return `${diffMinutes}min`;
-  if (diffHours < 24) return `${diffHours}h`;
-  return `${date.getDate()}/${date.getMonth() + 1}`;
-};
-
-const formatMessageDate = (dateString) => {
-  const date = new Date(dateString);
-  return `${date.getHours()}:${date.getMinutes().toString().padStart(2, '0')}`;
-};
-
-const getFullName = (user) => {
-  if (!user) return 'Utilisateur inconnu';
-  if (user.firstName && user.lastName) {
-    return `${user.firstName} ${user.lastName}`;
-  }
-  return user.username || 'Utilisateur';
-};
-
-const getImageUrl = (imagePath) => {
-  if (!imagePath) return null;
-  if (imagePath.startsWith('http')) {
-    return imagePath;
-  }
-  return `http://localhost:8000/media/${imagePath}`;
-};
-
-const StatusIndicator = ({ isOnline, userId, onlineUsers }) => {
-  const userOnline = (onlineUsers && onlineUsers.has && onlineUsers.has(userId)) || isOnline;
-  
-  return (
-    <div className="relative">
-      <div
-        className={`w-3 h-3 rounded-full border-2 border-white ${userOnline ? 'bg-green-500' : 'bg-gray-400'}`}
-      />
-      {userOnline && (
-        <div className="absolute inset-0 w-3 h-3 bg-green-500 rounded-full animate-ping opacity-75" />
-      )}
-    </div>
-  );
-};
 
 export default function MessagesPage() {
   const searchParams = useSearchParams();
