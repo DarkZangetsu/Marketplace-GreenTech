@@ -14,10 +14,10 @@ function ConditionalLayout({ children }) {
   const pathname = usePathname();
   
   // Pages où on ne veut pas afficher navbar et footer
-  const authPages = ['/auth/login', '/auth/register'];
-  const isAuthPage = authPages.includes(pathname);
+  const othersPages = ['/auth/login', '/auth/register', '/dashboard/messages'];
+  const isOthersPage = othersPages.includes(pathname);
 
-  if (isAuthPage) {
+  if (isOthersPage) {
     return (
       <main className="min-h-screen">
         {children}
