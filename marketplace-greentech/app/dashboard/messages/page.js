@@ -32,10 +32,11 @@ const formatMessageDate = (dateString) => {
 };
 
 const getFullName = (user) => {
+  if (!user) return 'Utilisateur inconnu';
   if (user.firstName && user.lastName) {
     return `${user.firstName} ${user.lastName}`;
   }
-  return user.username;
+  return user.username || 'Utilisateur';
 };
 
 const getImageUrl = (imagePath) => {
@@ -46,53 +47,20 @@ const getImageUrl = (imagePath) => {
   return `http://localhost:8000/media/${imagePath}`;
 };
 
-const groupMessagesIntoConversations = (messages, currentUserId) => {
-  const conversationMap = new Map();
-
-  messages.forEach(message => {
-    const otherUser = message.sender.id === currentUserId ? message.receiver : message.sender;
-    const listingId = message.listing.id;
-    const conversationKey = `${otherUser.id}-${listingId}`;
-
-    if (!conversationMap.has(conversationKey)) {
-      conversationMap.set(conversationKey, {
-        id: conversationKey,
-        otherUser,
-        listing: message.listing,
-        messages: [],
-        lastMessage: message,
-        unreadCount: 0
-      });
-    }
-
-    const conversation = conversationMap.get(conversationKey);
-    conversation.messages.push(message);
-
-    if (new Date(message.createdAt) > new Date(conversation.lastMessage.createdAt)) {
-      conversation.lastMessage = message;
-    }
-
-    if (message.receiver.id === currentUserId && !message.isRead) {
-      conversation.unreadCount++;
-    }
-  });
-
-  return Array.from(conversationMap.values()).sort((a, b) =>
-    new Date(b.lastMessage.createdAt) - new Date(a.lastMessage.createdAt)
+const StatusIndicator = ({ isOnline, userId, onlineUsers }) => {
+  const userOnline = (onlineUsers && onlineUsers.has && onlineUsers.has(userId)) || isOnline;
+  
+  return (
+    <div className="relative">
+      <div
+        className={`w-3 h-3 rounded-full border-2 border-white ${userOnline ? 'bg-green-500' : 'bg-gray-400'}`}
+      />
+      {userOnline && (
+        <div className="absolute inset-0 w-3 h-3 bg-green-500 rounded-full animate-ping opacity-75" />
+      )}
+    </div>
   );
 };
-
-const StatusIndicator = ({ isOnline }) => (
-  <div className="relative">
-    <div
-      className={`w-3 h-3 rounded-full border-2 border-white ${isOnline ? 'bg-green-500' : 'bg-gray-400'
-        }`}
-    />
-    {isOnline && (
-      <div className="absolute inset-0 w-3 h-3 bg-green-500 rounded-full animate-ping opacity-75" />
-    )}
-  </div>
-);
 
 export default function MessagesPage() {
   const searchParams = useSearchParams();
@@ -103,173 +71,379 @@ export default function MessagesPage() {
   const [activeConversation, setActiveConversation] = useState(null);
   const [newMessage, setNewMessage] = useState('');
   const [showMobileList, setShowMobileList] = useState(true);
-  const [conversationMessages, setConversationMessages] = useState([]);
-  const [realTimeMessages, setRealTimeMessages] = useState([]);
   const [searchQuery, setSearchQuery] = useState('');
+  const [onlineUsers, setOnlineUsers] = useState(new Set());
+  
+  // États pour les messages temps réel
+  const [allMessages, setAllMessages] = useState([]);
+  const [lastMessageUpdate, setLastMessageUpdate] = useState(Date.now());
 
-  // GraphQL queries and mutations
+  // GraphQL queries et mutations
   const { data: userData } = useQuery(GET_ME);
-  const { data: messagesData, loading: messagesLoading, error: messagesError, refetch: refetchMessages } = useQuery(MY_MESSAGES);
+  const { data: messagesData, loading: messagesLoading, error: messagesError, refetch: refetchMessages } = useQuery(MY_MESSAGES, {
+    fetchPolicy: 'cache-and-network'
+  });
 
   const { data: conversationData, loading: conversationLoading, refetch: refetchConversation } = useQuery(GET_CONVERSATION, {
     variables: {
       userId: activeConversation?.otherUser?.id,
       listingId: activeConversation?.listing?.id
     },
-    skip: !activeConversation?.otherUser?.id || !activeConversation?.listing?.id
+    skip: !activeConversation?.otherUser?.id || !activeConversation?.listing?.id,
+    fetchPolicy: 'cache-and-network'
   });
 
   const [sendMessage, { loading: sendingMessage }] = useMutation(SEND_MESSAGE, {
-    onCompleted: () => {
-      setNewMessage('');
-      refetchConversation();
-      refetchMessages();
-      scrollToBottom();
-    },
-    onError: (error) => {
-      console.error('Error sending message:', error);
+  onCompleted: (data) => {
+    console.log('Message envoyé avec succès:', data);
+    setNewMessage('');
+    
+    // Ajouter le message envoyé immédiatement à l'état local
+    if (data.sendMessage) {
+      setAllMessages(prev => {
+        const messageExists = prev.some(msg => msg?.id === data.sendMessage.id);
+        if (!messageExists) {
+          const newMessages = [...prev, data.sendMessage];
+          
+          // Déclencher immédiatement la mise à jour
+          setLastMessageUpdate(Date.now());
+          
+          // Défiler vers le bas
+          setTimeout(scrollToBottom, 50);
+          
+          return newMessages;
+        }
+        return prev;
+      });
+      
+      // Rafraîchir les données après un court délai
+      setTimeout(() => {
+        refetchMessages();
+      }, 200);
     }
-  });
+  },
+  onError: (error) => {
+    console.error('Erreur lors de l\'envoi du message:', error);
+  }
+});
 
   const [markAsRead] = useMutation(MARK_MESSAGE_AS_READ, {
     onCompleted: () => {
-      refetchMessages();
+      // Rafraîchir les données après marquage comme lu
+      setTimeout(() => {
+        refetchMessages();
+      }, 200);
+    },
+    onError: (error) => {
+      console.error('Erreur lors du marquage comme lu:', error);
     }
   });
 
   const currentUser = userData?.me;
 
-  // Scroll to bottom of messages
+  // Fonction pour faire défiler vers le bas
   const scrollToBottom = () => {
     if (messagesEndRef.current) {
       messagesEndRef.current.scrollIntoView({ behavior: 'smooth' });
     }
   };
 
-  // WebSocket message handler
-  const handleNewMessage = useCallback((message) => {
-    console.log('Nouveau message reçu via WebSocket:', message);
-
-    setRealTimeMessages(prev => {
-      if (prev.some(msg => msg.id === message.id)) {
-        return prev;
-      }
-      return [...prev, message];
-    });
-
-    if (activeConversation &&
-      ((message.sender.id === activeConversation.otherUser.id && message.receiver.id === currentUser?.id) ||
-        (message.sender.id === currentUser?.id && message.receiver.id === activeConversation.otherUser.id)) &&
-      message.listing.id === activeConversation.listing.id) {
-
-      setConversationMessages(prev => {
-        if (prev.some(msg => msg.id === message.id)) {
-          return prev;
+  // Gestion du statut des utilisateurs en ligne
+  useEffect(() => {
+    const handleUserStatusChange = (event) => {
+      const { userId, status } = event.detail;
+      console.log('Statut utilisateur changé:', userId, status);
+      
+      setOnlineUsers(prev => {
+        const newOnlineUsers = new Set(prev);
+        if (status === 'online') {
+          newOnlineUsers.add(userId);
+        } else {
+          newOnlineUsers.delete(userId);
         }
-        const newMessages = [...prev, message].sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
-        setTimeout(scrollToBottom, 100);
-        return newMessages;
+        return newOnlineUsers;
       });
+    };
+
+    window.addEventListener('userStatusChange', handleUserStatusChange);
+    
+    return () => {
+      window.removeEventListener('userStatusChange', handleUserStatusChange);
+    };
+  }, []);
+
+  // Gestionnaire de nouveaux messages WebSocket amélioré
+  const handleNewMessage = useCallback((messageData) => {
+  console.log('Nouveau message reçu via WebSocket:', messageData);
+
+  // Extraction correcte du message selon la structure reçue
+  let message = messageData;
+  
+  // Si c'est une mutation SendMessage, extraire le message
+  if (messageData?.sendMessage) {
+    message = messageData.sendMessage;
+  }
+  
+  // Si c'est wrappé dans messageObj
+  if (messageData?.messageObj) {
+    message = messageData.messageObj;
+  }
+
+  if (!message || !message.id) {
+    console.warn('Message invalide reçu:', messageData);
+    return;
+  }
+
+  // Vérifier que toutes les propriétés nécessaires sont présentes
+  if (!message.sender || !message.receiver || !message.listing) {
+    console.warn('Message avec propriétés manquantes:', message);
+    return;
+  }
+
+  setAllMessages(prev => {
+    // Vérifier si le message existe déjà
+    const messageExists = prev.some(msg => msg?.id === message.id);
+    if (messageExists) {
+      console.log('Message déjà existant, ignoré:', message.id);
+      return prev;
     }
 
+    console.log('Ajout du nouveau message à l\'état local');
+    const newMessages = [...prev, message];
+    
+    // Forcer la mise à jour des conversations
     setTimeout(() => {
-      refetchMessages();
-    }, 500);
+      setLastMessageUpdate(Date.now());
+    }, 0);
+    
+    return newMessages;
+  });
 
-    if (activeConversation &&
-      message.receiver.id === currentUser?.id &&
-      message.sender.id === activeConversation.otherUser.id &&
-      message.listing.id === activeConversation.listing.id) {
+  // Gestion de l'affichage et marquage comme lu
+  if (activeConversation && currentUser && message?.sender && message?.receiver && message?.listing) {
+    const isRelevantToActiveConversation = 
+      ((message.sender.id === activeConversation.otherUser?.id && message.receiver.id === currentUser.id) ||
+       (message.sender.id === currentUser.id && message.receiver.id === activeConversation.otherUser?.id)) &&
+      message.listing.id === activeConversation.listing?.id;
 
-      setTimeout(() => {
-        handleMarkAsRead(message.id);
-      }, 1000);
+    if (isRelevantToActiveConversation) {
+      // Défiler vers le bas pour les nouveaux messages
+      setTimeout(scrollToBottom, 100);
+      
+      // Marquer comme lu si c'est un message reçu
+      if (message.receiver.id === currentUser.id && message.sender.id === activeConversation.otherUser?.id) {
+        setTimeout(() => {
+          handleMarkAsRead(message.id);
+        }, 1000);
+      }
     }
-  }, [activeConversation, currentUser?.id, refetchMessages]);
+  }
 
-  // Initialize WebSocket
+  // Forcer le rafraîchissement des conversations après ajout
+  setTimeout(() => {
+    refetchMessages();
+  }, 500);
+}, [activeConversation, currentUser, refetchMessages]);
+
+  // Initialiser WebSocket
   const { isConnected, connectionState } = useWebSocket(currentUser?.id, handleNewMessage);
 
-  // Group messages into conversations
-  const conversations = useMemo(() => {
-    if (!currentUser || !messagesData?.myMessages) return [];
-
-    const allMessages = [...messagesData.myMessages, ...realTimeMessages];
-    const uniqueMessages = allMessages.reduce((acc, message) => {
-      if (!acc.some(msg => msg.id === message.id)) {
-        acc.push(message);
+  // Synchroniser les messages GraphQL avec l'état local
+  useEffect(() => {
+  if (messagesData?.myMessages) {
+    console.log('Synchronisation des messages GraphQL:', messagesData.myMessages.length);
+    
+    setAllMessages(prevMessages => {
+      const graphqlMessages = messagesData.myMessages.filter(msg => msg && msg.id);
+      const existingMessageIds = new Set(prevMessages.map(msg => msg?.id).filter(Boolean));
+      
+      // Ajouter uniquement les nouveaux messages GraphQL
+      const newGraphqlMessages = graphqlMessages.filter(msg => !existingMessageIds.has(msg.id));
+      
+      if (newGraphqlMessages.length > 0) {
+        console.log('Nouveaux messages GraphQL ajoutés:', newGraphqlMessages.length);
+        const mergedMessages = [...prevMessages, ...newGraphqlMessages];
+        
+        // Trier par date de création
+        const sortedMessages = mergedMessages.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+        
+        // Déclencher la mise à jour des conversations
+        setTimeout(() => {
+          setLastMessageUpdate(Date.now());
+        }, 0);
+        
+        return sortedMessages;
       }
-      return acc;
-    }, []);
+      
+      return prevMessages;
+    });
+  }
+}, [messagesData?.myMessages]);
 
-    return groupMessagesIntoConversations(uniqueMessages, currentUser.id);
-  }, [messagesData?.myMessages, realTimeMessages, currentUser?.id]);
+  // Synchroniser les messages de conversation
+  useEffect(() => {
+    if (conversationData?.conversation) {
+      console.log('Mise à jour des messages de conversation:', conversationData.conversation.length);
+      
+      const conversationMessages = conversationData.conversation.filter(msg => msg && msg.id);
+      
+      setAllMessages(prevMessages => {
+        const mergedMessages = [...prevMessages];
+        
+        // Ajouter les messages de conversation qui ne sont pas déjà présents
+        conversationMessages.forEach(convMsg => {
+          if (convMsg && convMsg.id && !mergedMessages.some(msg => msg?.id === convMsg.id)) {
+            mergedMessages.push(convMsg);
+          }
+        });
+        
+        return mergedMessages.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+      });
+      
+      setTimeout(scrollToBottom, 100);
+    }
+  }, [conversationData?.conversation]);
 
-  // Filter conversations based on search
+  // Grouper les messages en conversations - Optimisé avec useMemo
+  const conversations = useMemo(() => {
+  if (!currentUser || !allMessages.length) {
+    console.log('Pas de currentUser ou de messages pour grouper');
+    return [];
+  }
+
+  console.log('Regroupement des conversations avec', allMessages.length, 'messages');
+  
+  const conversationMap = {};
+
+  allMessages.forEach(message => {
+    // Vérification robuste des propriétés du message
+    if (!message || 
+        !message.sender || 
+        !message.receiver || 
+        !message.listing || 
+        !message.id ||
+        !message.sender.id ||
+        !message.receiver.id ||
+        !message.listing.id) {
+      console.warn('Message avec données manquantes ignoré:', message);
+      return;
+    }
+
+    const otherUser = message.sender.id === currentUser.id ? message.receiver : message.sender;
+    const listingId = message.listing.id;
+    const conversationKey = `${otherUser.id}-${listingId}`;
+
+    if (!conversationMap[conversationKey]) {
+      conversationMap[conversationKey] = {
+        id: conversationKey,
+        otherUser,
+        listing: message.listing,
+        messages: [],
+        lastMessage: message,
+        unreadCount: 0
+      };
+    }
+
+    const conversation = conversationMap[conversationKey];
+    
+    // Éviter les doublons dans les messages de conversation
+    const messageExists = conversation.messages.some(msg => msg.id === message.id);
+    if (!messageExists) {
+      conversation.messages.push(message);
+    }
+
+    // Mettre à jour le dernier message
+    if (new Date(message.createdAt) > new Date(conversation.lastMessage.createdAt)) {
+      conversation.lastMessage = message;
+    }
+
+    // Compter les messages non lus
+    if (message.receiver.id === currentUser.id && !message.isRead) {
+      conversation.unreadCount++;
+    }
+  });
+
+  const sortedConversations = Object.values(conversationMap).sort((a, b) =>
+    new Date(b.lastMessage.createdAt) - new Date(a.lastMessage.createdAt)
+  );
+
+  console.log('Conversations créées:', sortedConversations.length);
+  return sortedConversations;
+}, [allMessages, currentUser, lastMessageUpdate]);
+
+  // Filtrer les conversations selon la recherche
   const filteredConversations = useMemo(() => {
     if (!searchQuery.trim()) return conversations;
 
     return conversations.filter(conversation =>
-      getFullName(conversation.otherUser).toLowerCase().includes(searchQuery.toLowerCase()) ||
-      conversation.listing.title.toLowerCase().includes(searchQuery.toLowerCase())
+      conversation?.otherUser && conversation?.listing && (
+        getFullName(conversation.otherUser).toLowerCase().includes(searchQuery.toLowerCase()) ||
+        conversation.listing.title.toLowerCase().includes(searchQuery.toLowerCase())
+      )
     );
   }, [conversations, searchQuery]);
 
-  // Update conversation messages when conversation data changes
-  useEffect(() => {
-    if (conversationData?.conversation) {
-      const sortedMessages = [...conversationData.conversation].sort((a, b) =>
-        new Date(a.createdAt) - new Date(b.createdAt)
-      );
-
-      const relevantRealTimeMessages = realTimeMessages.filter(msg =>
-        activeConversation && (
-          (msg.sender.id === activeConversation.otherUser.id && msg.receiver.id === currentUser?.id) ||
-          (msg.sender.id === currentUser?.id && msg.receiver.id === activeConversation.otherUser.id)
-        ) && msg.listing.id === activeConversation.listing.id
-      );
-
-      const allConversationMessages = [...sortedMessages, ...relevantRealTimeMessages];
-      const uniqueConversationMessages = allConversationMessages.reduce((acc, message) => {
-        if (!acc.some(msg => msg.id === message.id)) {
-          acc.push(message);
-        }
-        return acc;
-      }, []).sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
-
-      setConversationMessages(uniqueConversationMessages);
-      setTimeout(scrollToBottom, 100);
-    } else if (activeConversation?.messages) {
-      setConversationMessages(activeConversation.messages.sort((a, b) =>
-        new Date(a.createdAt) - new Date(b.createdAt)
-      ));
-      setTimeout(scrollToBottom, 100);
+  // Messages de la conversation active
+  const conversationMessages = useMemo(() => {
+    if (!activeConversation || !currentUser || !activeConversation.otherUser || !activeConversation.listing) {
+      return [];
     }
-  }, [conversationData, activeConversation, realTimeMessages, currentUser?.id]);
 
-  // Scroll to bottom when conversation changes or new messages
+    const messages = allMessages.filter(message => {
+      // Vérifier que le message a toutes les propriétés nécessaires
+      if (!message || !message.sender || !message.receiver || !message.listing) {
+        return false;
+      }
+
+      const isRelevantConversation = 
+        ((message.sender.id === activeConversation.otherUser.id && message.receiver.id === currentUser.id) ||
+         (message.sender.id === currentUser.id && message.receiver.id === activeConversation.otherUser.id)) &&
+        message.listing.id === activeConversation.listing.id;
+      
+      return isRelevantConversation;
+    });
+
+    return messages.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+  }, [allMessages, activeConversation, currentUser]);
+
+  // Défiler vers le bas quand la conversation change
   useEffect(() => {
-    const timer = setTimeout(scrollToBottom, 100);
-    return () => clearTimeout(timer);
+    if (activeConversation) {
+      const timer = setTimeout(scrollToBottom, 200);
+      return () => clearTimeout(timer);
+    }
   }, [activeConversation]);
 
-  // Handle URL parameter for specific listing
+  // Défiler vers le bas quand de nouveaux messages arrivent dans la conversation active
+  useEffect(() => {
+    if (conversationMessages.length > 0) {
+      const timer = setTimeout(scrollToBottom, 100);
+      return () => clearTimeout(timer);
+    }
+  }, [conversationMessages.length]);
+
+  // Gérer le paramètre URL pour listing spécifique
   useEffect(() => {
     if (listingIdParam && conversations.length > 0) {
-      const conversation = conversations.find(c => c.listing.id === listingIdParam);
-      if (conversation) {
+      const conversation = conversations.find(c => c?.listing?.id === listingIdParam);
+      if (conversation && (!activeConversation || activeConversation.id !== conversation.id)) {
+        console.log('Activation de la conversation depuis URL:', conversation.id);
         setActiveConversation(conversation);
         setShowMobileList(false);
       }
     } else if (conversations.length > 0 && !activeConversation) {
+      console.log('Activation de la première conversation');
       setActiveConversation(conversations[0]);
     }
   }, [listingIdParam, conversations, activeConversation]);
 
+  // Envoyer un message
   const handleSendMessage = async (e) => {
     e.preventDefault();
 
-    if (!newMessage.trim() || !activeConversation || sendingMessage) return;
+    if (!newMessage.trim() || !activeConversation || sendingMessage || !activeConversation.otherUser || !activeConversation.listing) return;
+
+    console.log('Envoi du message:', newMessage);
 
     try {
       await sendMessage({
@@ -280,36 +454,68 @@ export default function MessagesPage() {
         }
       });
     } catch (error) {
-      console.error('Error sending message:', error);
+      console.error('Erreur lors de l\'envoi du message:', error);
     }
   };
 
+  // Marquer un message comme lu
   const handleMarkAsRead = async (messageId) => {
-    try {
-      await markAsRead({
-        variables: { messageId }
-      });
-    } catch (error) {
-      console.error('Error marking message as read:', error);
-    }
-  };
+  try {
+    await markAsRead({
+      variables: { messageId }
+    });
+    
+    // Mettre à jour l'état local immédiatement
+    setAllMessages(prev => 
+      prev.map(msg => 
+        msg.id === messageId ? { ...msg, isRead: true } : msg
+      )
+    );
+    
+    // Déclencher la mise à jour des conversations
+    setLastMessageUpdate(Date.now());
+    
+  } catch (error) {
+    console.error('Erreur lors du marquage comme lu:', error);
+  }
+};
 
+  // Gérer le clic sur une conversation
   const handleConversationClick = (conversation) => {
+    if (!conversation || !conversation.otherUser) {
+      console.warn('Tentative de clic sur une conversation invalide:', conversation);
+      return;
+    }
+
+    console.log('Clic sur conversation:', conversation.id);
     setActiveConversation(conversation);
     setShowMobileList(false);
 
-    if (conversation.unreadCount > 0) {
+    // Marquer les messages non lus comme lus
+    if (conversation.unreadCount > 0 && conversation.messages) {
       conversation.messages.forEach(message => {
-        if (message.receiver.id === currentUser?.id && !message.isRead) {
+        if (message && message.receiver && message.receiver.id === currentUser?.id && !message.isRead) {
           handleMarkAsRead(message.id);
         }
       });
     }
   };
 
-  const unreadCount = conversations.reduce((total, conv) => total + (conv.unreadCount || 0), 0);
+  useEffect(() => {
+    // Rafraîchir périodiquement les messages pour s'assurer de la synchronisation
+    const interval = setInterval(() => {
+      if (!sendingMessage) {
+        refetchMessages();
+      }
+    }, 1000); // Toutes les 10 secondes
 
-  // Show loading state
+    return () => clearInterval(interval);
+  }, [refetchMessages, sendingMessage]);
+
+  // Calculer le nombre total de messages non lus
+  const unreadCount = conversations.reduce((total, conv) => total + (conv?.unreadCount || 0), 0);
+
+  // États de chargement et d'erreur
   if (messagesLoading) {
     return (
       <div className="h-screen bg-gray-50 flex items-center justify-center">
@@ -321,7 +527,6 @@ export default function MessagesPage() {
     );
   }
 
-  // Show error state
   if (messagesError) {
     return (
       <div className="h-screen bg-gray-50 flex items-center justify-center">
@@ -348,31 +553,31 @@ export default function MessagesPage() {
     <div className="h-screen bg-gray-50 flex flex-col overflow-hidden">
       <Navbar />
 
-        {/* Header - Hauteur fixe */}
-        <div className="bg-white border-b border-gray-200 pt-20 px-4 py-3 flex-shrink-0">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-4">
-              <h1 className="text-xl font-semibold text-gray-900">Messages</h1>
-              {unreadCount > 0 && (
-                <span className="bg-green-500 text-white text-xs font-medium px-2 py-1 rounded-full">
-                  {unreadCount}
-                </span>
-              )}
-            </div>
-            <div className="flex items-center space-x-2">
-              <StatusIndicator isOnline={isConnected} />
-              <span className="text-sm text-gray-600">
-                {isConnected ? 'En ligne' : connectionState === 'connecting' ? 'Connexion...' : 'Hors ligne'}
+      {/* Header */}
+      <div className="bg-white border-b border-gray-200 pt-20 px-4 py-3 flex-shrink-0">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-4">
+            <h1 className="text-xl font-semibold text-gray-900">Messages</h1>
+            {unreadCount > 0 && (
+              <span className="bg-green-500 text-white text-xs font-medium px-2 py-1 rounded-full">
+                {unreadCount}
               </span>
-            </div>
+            )}
+          </div>
+          <div className="flex items-center space-x-2">
+            <StatusIndicator isOnline={isConnected} userId={currentUser?.id} onlineUsers={onlineUsers} />
+            <span className="text-sm text-gray-600">
+              {isConnected ? 'En ligne' : connectionState === 'connecting' ? 'Connexion...' : 'Hors ligne'}
+            </span>
           </div>
         </div>
+      </div>
 
-      {/* Interface principale - Prend le reste de l'espace */}
+      {/* Interface principale */}
       <div className="flex-1 flex overflow-hidden">
         {/* Liste des conversations */}
         <div className={`${showMobileList ? 'block' : 'hidden'} md:block w-full md:w-80 lg:w-96 bg-white border-r border-gray-200 flex flex-col overflow-hidden`}>
-          {/* Barre de recherche - Hauteur fixe */}
+          {/* Barre de recherche */}
           <div className="p-4 border-b border-gray-200 flex-shrink-0">
             <div className="relative">
               <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 w-4 h-4" />
@@ -402,69 +607,79 @@ export default function MessagesPage() {
               </div>
             ) : (
               <div className="space-y-1 p-2">
-                {filteredConversations.map(conversation => (
-                  <div
-                    key={conversation.id}
-                    className={`p-3 rounded-lg cursor-pointer transition-colors hover:bg-gray-50 ${activeConversation?.id === conversation.id ? 'bg-green-50 border border-green-200' : ''
-                      }`}
-                    onClick={() => handleConversationClick(conversation)}
-                  >
-                    <div className="flex items-start space-x-3">
-                      <div className="relative flex-shrink-0">
-                        <div className="w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center overflow-hidden">
-                          {conversation.otherUser.profilePicture ? (
-                            <Image
-                              src={getImageUrl(conversation.otherUser.profilePicture)}
-                              alt={getFullName(conversation.otherUser)}
-                              className="w-full h-full object-cover"
-                              width={48}
-                              height={48}
-                            />
-                          ) : (
-                            <User size={20} className="text-gray-500" />
-                          )}
-                        </div>
-                        <div className="absolute -bottom-1 -right-1">
-                          <StatusIndicator isOnline={isConnected} />
-                        </div>
-                      </div>
+                {filteredConversations.map(conversation => {
+                  if (!conversation || !conversation.otherUser || !conversation.listing) {
+                    return null;
+                  }
 
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center justify-between mb-1">
-                          <h3 className="font-medium text-gray-900 truncate flex items-center">
-                            {getFullName(conversation.otherUser)}
-                            {conversation.unreadCount > 0 && (
-                              <span className="ml-2 w-2 h-2 bg-green-500 rounded-full"></span>
+                  return (
+                    <div
+                      key={conversation.id}
+                      className={`p-3 rounded-lg cursor-pointer transition-colors hover:bg-gray-50 ${activeConversation?.id === conversation.id ? 'bg-green-50 border border-green-200' : ''
+                        }`}
+                      onClick={() => handleConversationClick(conversation)}
+                    >
+                      <div className="flex items-start space-x-3">
+                        <div className="relative flex-shrink-0">
+                          <div className="w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center overflow-hidden">
+                            {conversation.otherUser.profilePicture ? (
+                              <Image
+                                src={getImageUrl(conversation.otherUser.profilePicture)}
+                                alt={getFullName(conversation.otherUser)}
+                                className="w-full h-full object-cover"
+                                width={48}
+                                height={48}
+                              />
+                            ) : (
+                              <User size={20} className="text-gray-500" />
                             )}
-                          </h3>
-                          <span className="text-xs text-gray-500 flex-shrink-0">
-                            {conversation.lastMessage && formatDate(conversation.lastMessage.createdAt)}
-                          </span>
+                          </div>
+                          <div className="absolute -bottom-1 -right-1">
+                            <StatusIndicator 
+                              isOnline={onlineUsers.has(conversation.otherUser.id)} 
+                              userId={conversation.otherUser.id}
+                              onlineUsers={onlineUsers}
+                            />
+                          </div>
                         </div>
 
-                        {conversation.lastMessage && (
-                          <p className="text-sm text-gray-600 truncate">
-                            {conversation.lastMessage.sender.id === currentUser?.id ? 'Vous: ' : ''}
-                            {conversation.lastMessage.message}
-                          </p>
+                        <div className="flex-1 min-w-0">
+                          <div className="flex items-center justify-between mb-1">
+                            <h3 className="font-medium text-gray-900 truncate flex items-center">
+                              {getFullName(conversation.otherUser)}
+                              {conversation.unreadCount > 0 && (
+                                <span className="ml-2 w-2 h-2 bg-green-500 rounded-full"></span>
+                              )}
+                            </h3>
+                            <span className="text-xs text-gray-500 flex-shrink-0">
+                              {conversation.lastMessage && formatDate(conversation.lastMessage.createdAt)}
+                            </span>
+                          </div>
+
+                          {conversation.lastMessage && (
+                            <p className="text-sm text-gray-600 truncate">
+                              {conversation.lastMessage.sender?.id === currentUser?.id ? 'Vous: ' : ''}
+                              {conversation.lastMessage.message}
+                            </p>
+                          )}
+
+                          <div className="mt-1 flex items-center">
+                            <Package size={12} className="text-gray-400 mr-1 flex-shrink-0" />
+                            <span className="text-xs text-gray-500 truncate">{conversation.listing.title}</span>
+                          </div>
+                        </div>
+
+                        {conversation.unreadCount > 0 && (
+                          <div className="flex-shrink-0">
+                            <span className="bg-green-500 text-white text-xs font-medium w-5 h-5 rounded-full flex items-center justify-center">
+                              {conversation.unreadCount > 9 ? '9+' : conversation.unreadCount}
+                            </span>
+                          </div>
                         )}
-
-                        <div className="mt-1 flex items-center">
-                          <Package size={12} className="text-gray-400 mr-1 flex-shrink-0" />
-                          <span className="text-xs text-gray-500 truncate">{conversation.listing.title}</span>
-                        </div>
                       </div>
-
-                      {conversation.unreadCount > 0 && (
-                        <div className="flex-shrink-0">
-                          <span className="bg-green-500 text-white text-xs font-medium w-5 h-5 rounded-full flex items-center justify-center">
-                            {conversation.unreadCount > 9 ? '9+' : conversation.unreadCount}
-                          </span>
-                        </div>
-                      )}
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>
@@ -472,9 +687,9 @@ export default function MessagesPage() {
 
         {/* Zone de conversation */}
         <div className={`${!showMobileList ? 'block' : 'hidden'} md:block flex-1 flex flex-col bg-white overflow-hidden`}>
-          {activeConversation ? (
+          {activeConversation && activeConversation.otherUser && activeConversation.listing ? (
             <>
-              {/* En-tête de conversation - Hauteur fixe */}
+              {/* En-tête de conversation */}
               <div className="p-4 border-b border-gray-200 bg-white flex-shrink-0">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-3">
@@ -500,16 +715,19 @@ export default function MessagesPage() {
                         )}
                       </div>
                       <div className="absolute -bottom-1 -right-1">
-                        <div className={`w-3 h-3 rounded-full border-2 border-white ${isConnected ? 'bg-green-500' : 'bg-gray-400'
-                          }`} />
+                        <StatusIndicator 
+                          isOnline={onlineUsers.has(activeConversation.otherUser.id)} 
+                          userId={activeConversation.otherUser.id}
+                          onlineUsers={onlineUsers}
+                        />
                       </div>
                     </div>
 
                     <div>
                       <h3 className="font-medium text-gray-900">{getFullName(activeConversation.otherUser)}</h3>
                       <div className="flex items-center text-xs text-gray-500">
-                        <div className={`w-2 h-2 rounded-full mr-2 ${isConnected ? 'bg-green-500' : 'bg-gray-400'}`} />
-                        {isConnected ? 'En ligne' : 'Hors ligne'}
+                        <div className={`w-2 h-2 rounded-full mr-2 ${onlineUsers.has(activeConversation.otherUser.id) ? 'bg-green-500' : 'bg-gray-400'}`} />
+                        {onlineUsers.has(activeConversation.otherUser.id) ? 'En ligne' : 'Hors ligne'}
                       </div>
                     </div>
                   </div>
@@ -529,13 +747,13 @@ export default function MessagesPage() {
                 </div>
               </div>
 
-              {/* Zone des messages - Scrollable */}
+              {/* Zone des messages */}
               <div
                 ref={messagesContainerRef}
                 className="flex-1 overflow-y-auto px-4 py-4"
                 style={{
                   scrollBehavior: 'smooth',
-                  maxHeight: 'calc(100vh - 200px)' // Assure une hauteur maximale
+                  maxHeight: 'calc(100vh - 200px)'
                 }}
               >
                 {conversationLoading ? (
@@ -583,9 +801,9 @@ export default function MessagesPage() {
                 )}
               </div>
 
-              {/* Zone de saisie - Hauteur fixe */}
+              {/* Zone de saisie */}
               <div className="border-t border-gray-200 p-4 bg-white flex-shrink-0">
-                <div className="flex items-end space-x-3">
+                <form onSubmit={handleSendMessage} className="flex items-end space-x-3">
                   <div className="flex-1">
                     <textarea
                       placeholder="Écrivez votre message..."
@@ -612,7 +830,7 @@ export default function MessagesPage() {
                     />
                   </div>
                   <button
-                    onClick={handleSendMessage}
+                    type="submit"
                     className="bg-green-500 text-white p-3 rounded-full hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex-shrink-0"
                     disabled={sendingMessage || !newMessage.trim()}
                   >
@@ -622,7 +840,7 @@ export default function MessagesPage() {
                       <Send size={16} />
                     )}
                   </button>
-                </div>
+                </form>
               </div>
             </>
           ) : (

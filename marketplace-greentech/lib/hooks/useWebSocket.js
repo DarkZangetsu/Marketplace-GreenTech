@@ -10,6 +10,8 @@ export const useWebSocket = (userId, onMessage) => {
   const [connectionState, setConnectionState] = useState('disconnected');
   const [error, setError] = useState(null);
   const mountedRef = useRef(true);
+  const lastPongRef = useRef(Date.now());
+  const pongTimeoutRef = useRef(null);
 
   const getAuthToken = () => {
     if (typeof window !== 'undefined') {
@@ -27,6 +29,11 @@ export const useWebSocket = (userId, onMessage) => {
     if (pingIntervalRef.current) {
       clearInterval(pingIntervalRef.current);
       pingIntervalRef.current = null;
+    }
+
+    if (pongTimeoutRef.current) {
+      clearTimeout(pongTimeoutRef.current);
+      pongTimeoutRef.current = null;
     }
   }, []);
 
@@ -89,15 +96,29 @@ export const useWebSocket = (userId, onMessage) => {
         setConnectionState('connected');
         setError(null);
         reconnectAttemptsRef.current = 0;
+        lastPongRef.current = Date.now();
         
         // Démarrer le ping avec un délai initial
         setTimeout(() => {
           if (ws.current && ws.current.readyState === WebSocket.OPEN && mountedRef.current) {
+            // Ping toutes les 30 secondes
             pingIntervalRef.current = setInterval(() => {
               if (ws.current && ws.current.readyState === WebSocket.OPEN) {
                 try {
                   ws.current.send(JSON.stringify({ type: 'ping' }));
                   console.log('Ping envoyé');
+                  
+                  // Timeout pour vérifier si on reçoit un pong
+                  pongTimeoutRef.current = setTimeout(() => {
+                    const timeSinceLastPong = Date.now() - lastPongRef.current;
+                    if (timeSinceLastPong > 45000) { // 45 secondes sans pong
+                      console.error('Pas de pong reçu, connexion probablement fermée');
+                      if (ws.current) {
+                        ws.current.close(1006, 'Pas de pong reçu');
+                      }
+                    }
+                  }, 15000); // Attendre 15 secondes pour le pong
+                  
                 } catch (err) {
                   console.error('Erreur lors de l\'envoi du ping:', err);
                 }
@@ -123,6 +144,11 @@ export const useWebSocket = (userId, onMessage) => {
           
           if (data.type === 'pong') {
             console.log('Pong reçu - connexion stable');
+            lastPongRef.current = Date.now();
+            if (pongTimeoutRef.current) {
+              clearTimeout(pongTimeoutRef.current);
+              pongTimeoutRef.current = null;
+            }
             return;
           }
           
@@ -130,6 +156,16 @@ export const useWebSocket = (userId, onMessage) => {
             console.log('Nouveau message traité:', data.message);
             onMessage(data.message);
           }
+
+          // Gestion des notifications de statut utilisateur
+          if (data.type === 'user_status' && data.user_id && data.status) {
+            console.log('Statut utilisateur mis à jour:', data.user_id, data.status);
+            // Vous pouvez émettre un événement personnalisé ou utiliser un callback
+            window.dispatchEvent(new CustomEvent('userStatusChange', {
+              detail: { userId: data.user_id, status: data.status }
+            }));
+          }
+          
         } catch (error) {
           console.error('Erreur lors du parsing du message WebSocket:', error, event.data);
           setError(`Erreur de parsing: ${error.message}`);
