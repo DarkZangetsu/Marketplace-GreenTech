@@ -10,6 +10,7 @@ import { GET_CONVERSATION, GET_ME, MY_MESSAGES } from '@/lib/graphql/queries';
 import { MARK_MESSAGE_AS_READ, SEND_MESSAGE } from '@/lib/graphql/mutations';
 import { useWebSocket } from '@/lib/hooks/useWebSocket';
 import Image from 'next/image';
+import Navbar from '@/app/components/Navbar';
 
 // Helper functions
 const formatDate = (dateString) => {
@@ -18,7 +19,7 @@ const formatDate = (dateString) => {
   const diffTime = Math.abs(now - date);
   const diffMinutes = Math.floor(diffTime / (1000 * 60));
   const diffHours = Math.floor(diffTime / (1000 * 60 * 60));
-  
+
   if (diffMinutes < 1) return 'Maintenant';
   if (diffMinutes < 60) return `${diffMinutes}min`;
   if (diffHours < 24) return `${diffHours}h`;
@@ -47,12 +48,12 @@ const getImageUrl = (imagePath) => {
 
 const groupMessagesIntoConversations = (messages, currentUserId) => {
   const conversationMap = new Map();
-  
+
   messages.forEach(message => {
     const otherUser = message.sender.id === currentUserId ? message.receiver : message.sender;
     const listingId = message.listing.id;
     const conversationKey = `${otherUser.id}-${listingId}`;
-    
+
     if (!conversationMap.has(conversationKey)) {
       conversationMap.set(conversationKey, {
         id: conversationKey,
@@ -63,30 +64,29 @@ const groupMessagesIntoConversations = (messages, currentUserId) => {
         unreadCount: 0
       });
     }
-    
+
     const conversation = conversationMap.get(conversationKey);
     conversation.messages.push(message);
-    
+
     if (new Date(message.createdAt) > new Date(conversation.lastMessage.createdAt)) {
       conversation.lastMessage = message;
     }
-    
+
     if (message.receiver.id === currentUserId && !message.isRead) {
       conversation.unreadCount++;
     }
   });
-  
-  return Array.from(conversationMap.values()).sort((a, b) => 
+
+  return Array.from(conversationMap.values()).sort((a, b) =>
     new Date(b.lastMessage.createdAt) - new Date(a.lastMessage.createdAt)
   );
 };
 
 const StatusIndicator = ({ isOnline }) => (
   <div className="relative">
-    <div 
-      className={`w-3 h-3 rounded-full border-2 border-white ${
-        isOnline ? 'bg-green-500' : 'bg-gray-400'
-      }`}
+    <div
+      className={`w-3 h-3 rounded-full border-2 border-white ${isOnline ? 'bg-green-500' : 'bg-gray-400'
+        }`}
     />
     {isOnline && (
       <div className="absolute inset-0 w-3 h-3 bg-green-500 rounded-full animate-ping opacity-75" />
@@ -99,7 +99,7 @@ export default function MessagesPage() {
   const listingIdParam = searchParams.get('listing');
   const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
-  
+
   const [activeConversation, setActiveConversation] = useState(null);
   const [newMessage, setNewMessage] = useState('');
   const [showMobileList, setShowMobileList] = useState(true);
@@ -110,7 +110,7 @@ export default function MessagesPage() {
   // GraphQL queries and mutations
   const { data: userData } = useQuery(GET_ME);
   const { data: messagesData, loading: messagesLoading, error: messagesError, refetch: refetchMessages } = useQuery(MY_MESSAGES);
-  
+
   const { data: conversationData, loading: conversationLoading, refetch: refetchConversation } = useQuery(GET_CONVERSATION, {
     variables: {
       userId: activeConversation?.otherUser?.id,
@@ -149,7 +149,7 @@ export default function MessagesPage() {
   // WebSocket message handler
   const handleNewMessage = useCallback((message) => {
     console.log('Nouveau message reçu via WebSocket:', message);
-    
+
     setRealTimeMessages(prev => {
       if (prev.some(msg => msg.id === message.id)) {
         return prev;
@@ -157,11 +157,11 @@ export default function MessagesPage() {
       return [...prev, message];
     });
 
-    if (activeConversation && 
-        ((message.sender.id === activeConversation.otherUser.id && message.receiver.id === currentUser?.id) ||
-         (message.sender.id === currentUser?.id && message.receiver.id === activeConversation.otherUser.id)) &&
-        message.listing.id === activeConversation.listing.id) {
-      
+    if (activeConversation &&
+      ((message.sender.id === activeConversation.otherUser.id && message.receiver.id === currentUser?.id) ||
+        (message.sender.id === currentUser?.id && message.receiver.id === activeConversation.otherUser.id)) &&
+      message.listing.id === activeConversation.listing.id) {
+
       setConversationMessages(prev => {
         if (prev.some(msg => msg.id === message.id)) {
           return prev;
@@ -176,11 +176,11 @@ export default function MessagesPage() {
       refetchMessages();
     }, 500);
 
-    if (activeConversation && 
-        message.receiver.id === currentUser?.id && 
-        message.sender.id === activeConversation.otherUser.id &&
-        message.listing.id === activeConversation.listing.id) {
-      
+    if (activeConversation &&
+      message.receiver.id === currentUser?.id &&
+      message.sender.id === activeConversation.otherUser.id &&
+      message.listing.id === activeConversation.listing.id) {
+
       setTimeout(() => {
         handleMarkAsRead(message.id);
       }, 1000);
@@ -189,11 +189,11 @@ export default function MessagesPage() {
 
   // Initialize WebSocket
   const { isConnected, connectionState } = useWebSocket(currentUser?.id, handleNewMessage);
-  
+
   // Group messages into conversations
   const conversations = useMemo(() => {
     if (!currentUser || !messagesData?.myMessages) return [];
-    
+
     const allMessages = [...messagesData.myMessages, ...realTimeMessages];
     const uniqueMessages = allMessages.reduce((acc, message) => {
       if (!acc.some(msg => msg.id === message.id)) {
@@ -201,15 +201,15 @@ export default function MessagesPage() {
       }
       return acc;
     }, []);
-    
+
     return groupMessagesIntoConversations(uniqueMessages, currentUser.id);
   }, [messagesData?.myMessages, realTimeMessages, currentUser?.id]);
 
   // Filter conversations based on search
   const filteredConversations = useMemo(() => {
     if (!searchQuery.trim()) return conversations;
-    
-    return conversations.filter(conversation => 
+
+    return conversations.filter(conversation =>
       getFullName(conversation.otherUser).toLowerCase().includes(searchQuery.toLowerCase()) ||
       conversation.listing.title.toLowerCase().includes(searchQuery.toLowerCase())
     );
@@ -218,17 +218,17 @@ export default function MessagesPage() {
   // Update conversation messages when conversation data changes
   useEffect(() => {
     if (conversationData?.conversation) {
-      const sortedMessages = [...conversationData.conversation].sort((a, b) => 
+      const sortedMessages = [...conversationData.conversation].sort((a, b) =>
         new Date(a.createdAt) - new Date(b.createdAt)
       );
-      
-      const relevantRealTimeMessages = realTimeMessages.filter(msg => 
+
+      const relevantRealTimeMessages = realTimeMessages.filter(msg =>
         activeConversation && (
           (msg.sender.id === activeConversation.otherUser.id && msg.receiver.id === currentUser?.id) ||
           (msg.sender.id === currentUser?.id && msg.receiver.id === activeConversation.otherUser.id)
         ) && msg.listing.id === activeConversation.listing.id
       );
-      
+
       const allConversationMessages = [...sortedMessages, ...relevantRealTimeMessages];
       const uniqueConversationMessages = allConversationMessages.reduce((acc, message) => {
         if (!acc.some(msg => msg.id === message.id)) {
@@ -236,11 +236,11 @@ export default function MessagesPage() {
         }
         return acc;
       }, []).sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
-      
+
       setConversationMessages(uniqueConversationMessages);
       setTimeout(scrollToBottom, 100);
     } else if (activeConversation?.messages) {
-      setConversationMessages(activeConversation.messages.sort((a, b) => 
+      setConversationMessages(activeConversation.messages.sort((a, b) =>
         new Date(a.createdAt) - new Date(b.createdAt)
       ));
       setTimeout(scrollToBottom, 100);
@@ -268,9 +268,9 @@ export default function MessagesPage() {
 
   const handleSendMessage = async (e) => {
     e.preventDefault();
-    
+
     if (!newMessage.trim() || !activeConversation || sendingMessage) return;
-    
+
     try {
       await sendMessage({
         variables: {
@@ -297,7 +297,7 @@ export default function MessagesPage() {
   const handleConversationClick = (conversation) => {
     setActiveConversation(conversation);
     setShowMobileList(false);
-    
+
     if (conversation.unreadCount > 0) {
       conversation.messages.forEach(message => {
         if (message.receiver.id === currentUser?.id && !message.isRead) {
@@ -333,7 +333,7 @@ export default function MessagesPage() {
           </div>
           <h3 className="text-lg font-semibold text-gray-900 mb-2">Erreur de chargement</h3>
           <p className="text-gray-600 mb-4">{messagesError.message}</p>
-          <button 
+          <button
             onClick={() => refetchMessages()}
             className="bg-green-600 text-white px-6 py-2 rounded-lg hover:bg-green-700 transition-colors"
           >
@@ -346,26 +346,28 @@ export default function MessagesPage() {
 
   return (
     <div className="h-screen bg-gray-50 flex flex-col overflow-hidden">
-      {/* Header - Hauteur fixe */}
-      <div className="bg-white border-b border-gray-200 px-4 py-3 flex-shrink-0">
-        <div className="flex items-center justify-between">
-          <div className="flex items-center space-x-4">
-            <h1 className="text-xl font-semibold text-gray-900">Messages</h1>
-            {unreadCount > 0 && (
-              <span className="bg-green-500 text-white text-xs font-medium px-2 py-1 rounded-full">
-                {unreadCount}
+      <Navbar />
+
+        {/* Header - Hauteur fixe */}
+        <div className="bg-white border-b border-gray-200 pt-20 px-4 py-3 flex-shrink-0">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center space-x-4">
+              <h1 className="text-xl font-semibold text-gray-900">Messages</h1>
+              {unreadCount > 0 && (
+                <span className="bg-green-500 text-white text-xs font-medium px-2 py-1 rounded-full">
+                  {unreadCount}
+                </span>
+              )}
+            </div>
+            <div className="flex items-center space-x-2">
+              <StatusIndicator isOnline={isConnected} />
+              <span className="text-sm text-gray-600">
+                {isConnected ? 'En ligne' : connectionState === 'connecting' ? 'Connexion...' : 'Hors ligne'}
               </span>
-            )}
-          </div>
-          <div className="flex items-center space-x-2">
-            <StatusIndicator isOnline={isConnected} />
-            <span className="text-sm text-gray-600">
-              {isConnected ? 'En ligne' : connectionState === 'connecting' ? 'Connexion...' : 'Hors ligne'}
-            </span>
+            </div>
           </div>
         </div>
-      </div>
-      
+
       {/* Interface principale - Prend le reste de l'espace */}
       <div className="flex-1 flex overflow-hidden">
         {/* Liste des conversations */}
@@ -383,7 +385,7 @@ export default function MessagesPage() {
               />
             </div>
           </div>
-          
+
           {/* Liste scrollable des conversations */}
           <div className="flex-1 overflow-y-auto">
             {filteredConversations.length === 0 ? (
@@ -401,19 +403,18 @@ export default function MessagesPage() {
             ) : (
               <div className="space-y-1 p-2">
                 {filteredConversations.map(conversation => (
-                  <div 
+                  <div
                     key={conversation.id}
-                    className={`p-3 rounded-lg cursor-pointer transition-colors hover:bg-gray-50 ${
-                      activeConversation?.id === conversation.id ? 'bg-green-50 border border-green-200' : ''
-                    }`}
+                    className={`p-3 rounded-lg cursor-pointer transition-colors hover:bg-gray-50 ${activeConversation?.id === conversation.id ? 'bg-green-50 border border-green-200' : ''
+                      }`}
                     onClick={() => handleConversationClick(conversation)}
                   >
                     <div className="flex items-start space-x-3">
                       <div className="relative flex-shrink-0">
                         <div className="w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center overflow-hidden">
                           {conversation.otherUser.profilePicture ? (
-                            <Image 
-                              src={getImageUrl(conversation.otherUser.profilePicture)} 
+                            <Image
+                              src={getImageUrl(conversation.otherUser.profilePicture)}
                               alt={getFullName(conversation.otherUser)}
                               className="w-full h-full object-cover"
                               width={48}
@@ -427,7 +428,7 @@ export default function MessagesPage() {
                           <StatusIndicator isOnline={isConnected} />
                         </div>
                       </div>
-                      
+
                       <div className="flex-1 min-w-0">
                         <div className="flex items-center justify-between mb-1">
                           <h3 className="font-medium text-gray-900 truncate flex items-center">
@@ -440,20 +441,20 @@ export default function MessagesPage() {
                             {conversation.lastMessage && formatDate(conversation.lastMessage.createdAt)}
                           </span>
                         </div>
-                        
+
                         {conversation.lastMessage && (
                           <p className="text-sm text-gray-600 truncate">
                             {conversation.lastMessage.sender.id === currentUser?.id ? 'Vous: ' : ''}
                             {conversation.lastMessage.message}
                           </p>
                         )}
-                        
+
                         <div className="mt-1 flex items-center">
                           <Package size={12} className="text-gray-400 mr-1 flex-shrink-0" />
                           <span className="text-xs text-gray-500 truncate">{conversation.listing.title}</span>
                         </div>
                       </div>
-                      
+
                       {conversation.unreadCount > 0 && (
                         <div className="flex-shrink-0">
                           <span className="bg-green-500 text-white text-xs font-medium w-5 h-5 rounded-full flex items-center justify-center">
@@ -468,7 +469,7 @@ export default function MessagesPage() {
             )}
           </div>
         </div>
-        
+
         {/* Zone de conversation */}
         <div className={`${!showMobileList ? 'block' : 'hidden'} md:block flex-1 flex flex-col bg-white overflow-hidden`}>
           {activeConversation ? (
@@ -477,18 +478,18 @@ export default function MessagesPage() {
               <div className="p-4 border-b border-gray-200 bg-white flex-shrink-0">
                 <div className="flex items-center justify-between">
                   <div className="flex items-center space-x-3">
-                    <button 
+                    <button
                       className="md:hidden text-gray-500 hover:text-gray-700"
                       onClick={() => setShowMobileList(true)}
                     >
                       <ArrowLeft size={20} />
                     </button>
-                    
+
                     <div className="relative">
                       <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center overflow-hidden">
                         {activeConversation.otherUser.profilePicture ? (
-                          <Image 
-                            src={getImageUrl(activeConversation.otherUser.profilePicture)} 
+                          <Image
+                            src={getImageUrl(activeConversation.otherUser.profilePicture)}
                             alt={getFullName(activeConversation.otherUser)}
                             className="w-full h-full object-cover"
                             width={40}
@@ -499,12 +500,11 @@ export default function MessagesPage() {
                         )}
                       </div>
                       <div className="absolute -bottom-1 -right-1">
-                        <div className={`w-3 h-3 rounded-full border-2 border-white ${
-                          isConnected ? 'bg-green-500' : 'bg-gray-400'
-                        }`} />
+                        <div className={`w-3 h-3 rounded-full border-2 border-white ${isConnected ? 'bg-green-500' : 'bg-gray-400'
+                          }`} />
                       </div>
                     </div>
-                    
+
                     <div>
                       <h3 className="font-medium text-gray-900">{getFullName(activeConversation.otherUser)}</h3>
                       <div className="flex items-center text-xs text-gray-500">
@@ -513,9 +513,9 @@ export default function MessagesPage() {
                       </div>
                     </div>
                   </div>
-                  
+
                   <div className="flex items-center space-x-2">
-                    <Link 
+                    <Link
                       href={`/listings/${activeConversation.listing.id}`}
                       className="text-sm text-green-600 hover:text-green-700 flex items-center space-x-1"
                     >
@@ -528,12 +528,12 @@ export default function MessagesPage() {
                   </div>
                 </div>
               </div>
-              
+
               {/* Zone des messages - Scrollable */}
-              <div 
+              <div
                 ref={messagesContainerRef}
                 className="flex-1 overflow-y-auto px-4 py-4"
-                style={{ 
+                style={{
                   scrollBehavior: 'smooth',
                   maxHeight: 'calc(100vh - 200px)' // Assure une hauteur maximale
                 }}
@@ -546,9 +546,9 @@ export default function MessagesPage() {
                   <div className="space-y-4">
                     {conversationMessages.map((message, index) => {
                       const isFromMe = message.sender.id === currentUser?.id;
-                      const showDate = index === 0 || 
+                      const showDate = index === 0 ||
                         new Date(conversationMessages[index - 1].createdAt).toDateString() !== new Date(message.createdAt).toDateString();
-                      
+
                       return (
                         <div key={message.id}>
                           {showDate && (
@@ -558,21 +558,19 @@ export default function MessagesPage() {
                               </span>
                             </div>
                           )}
-                          
+
                           <div className={`flex ${isFromMe ? 'justify-end' : 'justify-start'}`}>
                             <div className={`max-w-[75%] sm:max-w-[60%] ${isFromMe ? 'order-2' : 'order-1'}`}>
-                              <div 
-                                className={`rounded-2xl px-4 py-2 ${
-                                  isFromMe 
-                                    ? 'bg-green-500 text-white rounded-br-md' 
+                              <div
+                                className={`rounded-2xl px-4 py-2 ${isFromMe
+                                    ? 'bg-green-500 text-white rounded-br-md'
                                     : 'bg-gray-100 text-gray-800 rounded-bl-md'
-                                }`}
+                                  }`}
                               >
                                 <p className="text-sm break-words whitespace-pre-wrap">{message.message}</p>
                               </div>
-                              <p className={`text-xs mt-1 px-2 ${
-                                isFromMe ? 'text-right text-gray-500' : 'text-left text-gray-500'
-                              }`}>
+                              <p className={`text-xs mt-1 px-2 ${isFromMe ? 'text-right text-gray-500' : 'text-left text-gray-500'
+                                }`}>
                                 {formatMessageDate(message.createdAt)}
                               </p>
                             </div>
@@ -584,7 +582,7 @@ export default function MessagesPage() {
                   </div>
                 )}
               </div>
-              
+
               {/* Zone de saisie - Hauteur fixe */}
               <div className="border-t border-gray-200 p-4 bg-white flex-shrink-0">
                 <div className="flex items-end space-x-3">
@@ -596,8 +594,8 @@ export default function MessagesPage() {
                       onChange={(e) => setNewMessage(e.target.value)}
                       disabled={sendingMessage}
                       rows={1}
-                      style={{ 
-                        minHeight: '44px', 
+                      style={{
+                        minHeight: '44px',
                         maxHeight: '120px',
                         height: 'auto'
                       }}
