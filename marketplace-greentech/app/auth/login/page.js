@@ -1,3 +1,4 @@
+/* eslint-disable react/no-unescaped-entities */
 'use client';
 
 import Link from 'next/link';
@@ -21,13 +22,13 @@ export default function LoginPage() {
       if (data.login.success) {
         localStorage.setItem('token', data.login.token);
         localStorage.setItem('user', JSON.stringify(data.login.user));
-        
-        window.dispatchEvent(new CustomEvent('authChanged', { 
-          detail: { isAuthenticated: true, user: data.login.user } 
+
+        window.dispatchEvent(new CustomEvent('authChanged', {
+          detail: { isAuthenticated: true, user: data.login.user }
         }));
-        
+
         toast.success('Connexion réussie !');
-        
+
         setTimeout(() => {
           window.location.href = '/dashboard';
         }, 1000);
@@ -49,7 +50,7 @@ export default function LoginPage() {
     e.preventDefault();
     setError('');
     setIsLoading(true);
-    
+
     try {
       await loginUser({
         variables: {
@@ -64,11 +65,7 @@ export default function LoginPage() {
   };
 
   const handleGoBack = () => {
-    if (window.history.length > 1) {
-      router.back();
-    } else {
-      router.push('/');
-    }
+    router.push('/');
   };
 
   return (
@@ -89,44 +86,44 @@ export default function LoginPage() {
           <div className="w-full max-w-6xl">
             <div className="bg-white rounded-3xl shadow-2xl overflow-hidden">
               <div className="flex flex-col lg:flex-row min-h-[600px]">
-                
+
                 {/* Partie gauche - Textes et branding */}
                 <div className="lg:w-1/2 bg-gradient-to-br from-green-600 to-green-800 p-8 lg:p-12 flex flex-col justify-center text-white relative overflow-hidden">
                   {/* Éléments décoratifs */}
                   <div className="absolute top-0 right-0 w-64 h-64 bg-white/10 rounded-full -translate-y-32 translate-x-32"></div>
                   <div className="absolute bottom-0 left-0 w-48 h-48 bg-white/10 rounded-full translate-y-24 -translate-x-24"></div>
-                  
+
                   <div className="relative z-10">
                     {/* Logo */}
                     <div className="inline-flex items-center justify-center w-16 h-16 bg-white/20 backdrop-blur-sm rounded-2xl mb-8">
                       <span className="text-white font-bold text-2xl">G</span>
                     </div>
-                    
+
                     {/* Titre principal */}
                     <h1 className="text-4xl lg:text-5xl font-bold mb-6 leading-tight">
                       Bienvenue sur
                       <br />
-                      <span className="text-green-200">GreenTech</span>
+                      <span className="text-green-200">ReUse Madagascar</span>
                     </h1>
-                    
+
                     {/* Description */}
                     <p className="text-xl text-green-100 mb-8 leading-relaxed">
-                      Connectez-vous à votre espace personnel et découvrez toutes les fonctionnalités de notre plateforme écologique.
+                      Rejoignez la première plateforme malgache de réutilisation de matériaux. Donnez une seconde vie aux matériaux de construction et d'artisanat.
                     </p>
-                    
+
                     {/* Points forts */}
                     <div className="space-y-4">
                       <div className="flex items-center">
                         <div className="w-2 h-2 bg-green-300 rounded-full mr-4"></div>
-                        <span className="text-green-100">Gestion intelligente de vos données</span>
+                        <span className="text-green-100">Donnez, récupérez ou achetez à prix réduit</span>
                       </div>
                       <div className="flex items-center">
                         <div className="w-2 h-2 bg-green-300 rounded-full mr-4"></div>
-                        <span className="text-green-100">Interface intuitive et moderne</span>
+                        <span className="text-green-100">Réduisez les déchets de construction</span>
                       </div>
                       <div className="flex items-center">
                         <div className="w-2 h-2 bg-green-300 rounded-full mr-4"></div>
-                        <span className="text-green-100">Sécurité et confidentialité garanties</span>
+                        <span className="text-green-100">Communauté locale engagée</span>
                       </div>
                     </div>
                   </div>
@@ -135,7 +132,7 @@ export default function LoginPage() {
                 {/* Partie droite - Formulaire */}
                 <div className="lg:w-1/2 p-8 lg:p-12 flex flex-col justify-center">
                   <div className="w-full max-w-md mx-auto">
-                    
+
                     {/* En-tête du formulaire */}
                     <div className="mb-8">
                       <h2 className="text-3xl font-bold text-gray-900 mb-2">
@@ -221,8 +218,8 @@ export default function LoginPage() {
                           />
                           <span className="ml-2 text-sm text-gray-600">Se souvenir de moi</span>
                         </label>
-                        <Link 
-                          href="/auth/forgot-password" 
+                        <Link
+                          href="/auth/forgot-password"
                           className="text-sm font-medium text-green-600 hover:text-green-500 transition-colors"
                         >
                           Mot de passe oublié ?
@@ -286,8 +283,8 @@ export default function LoginPage() {
                     <div className="mt-8 text-center">
                       <p className="text-gray-600">
                         Pas encore de compte ?{' '}
-                        <Link 
-                          href="/auth/register" 
+                        <Link
+                          href="/auth/register"
                           className="font-semibold text-green-600 hover:text-green-500 transition-colors"
                         >
                           Créer un compte gratuitement
