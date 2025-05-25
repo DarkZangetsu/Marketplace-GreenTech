@@ -25,6 +25,7 @@ import { format } from 'date-fns';
 import { fr } from 'date-fns/locale';
 import { GET_LISTING, GET_ME } from '@/lib/graphql/queries';
 import { SEND_MESSAGE } from '@/lib/graphql/mutations';
+import { getProfilePictureUrl } from '@/app/components/messages/Helper';
 
 export default function ListingDetailPage({ params }) {
   // Utiliser React.use() pour déballer params
@@ -321,7 +322,7 @@ export default function ListingDetailPage({ params }) {
                 <div className="w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center mr-3">
                   {listing.user?.profilePicture ? (
                     <Image
-                      src={getImageUrl(listing.user.profilePicture)}
+                      src={getProfilePictureUrl(listing.user.profilePicture)}
                       alt={sellerName}
                       width={48}
                       height={48}

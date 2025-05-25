@@ -3,6 +3,8 @@
 
 import { useState } from 'react';
 import { Save, Bell, Lock, User,  Trash2 } from 'lucide-react';
+import { useMutation } from '@apollo/client';
+import { CHANGE_PASSWORD } from '@/lib/graphql/mutations';
 
 // Mock user settings
 const mockSettings = {
@@ -37,6 +39,24 @@ export default function SettingsPage() {
   const [passwordError, setPasswordError] = useState('');
   const [saveSuccess, setSaveSuccess] = useState(false);
 
+  const [changePassword, { loading }] = useMutation(CHANGE_PASSWORD, {
+    onCompleted: (data) => {
+      if (data.changePassword.success) {
+        setSaveSuccess(true);
+        setCurrentPassword('');
+        setNewPassword('');
+        setConfirmPassword('');
+        setPasswordError('');
+        setTimeout(() => setSaveSuccess(false), 3000);
+      } else {
+        setPasswordError(data.changePassword.message || 'Erreur inconnue');
+      }
+    },
+    onError: (error) => {
+      setPasswordError(error.message || 'Erreur lors du changement de mot de passe');
+    }
+  });
+
   const handleAccountChange = (e) => {
     const { name, value } = e.target;
     setSettings(prev => ({
@@ -70,41 +90,22 @@ export default function SettingsPage() {
     }));
   };
 
-  const handlePasswordSubmit = (e) => {
+  const handlePasswordSubmit = async (e) => {
     e.preventDefault();
-    
-    // Reset error state
     setPasswordError('');
-    
-    // Simple validation
     if (!currentPassword) {
       setPasswordError('Veuillez saisir votre mot de passe actuel');
       return;
     }
-    
     if (newPassword.length < 8) {
       setPasswordError('Le nouveau mot de passe doit contenir au moins 8 caractères');
       return;
     }
-    
     if (newPassword !== confirmPassword) {
       setPasswordError('Les mots de passe ne correspondent pas');
       return;
     }
-    
-    // In a real app, we would call an API to change the password
-    console.log('Password change requested');
-    
-    // Reset form and show success message
-    setCurrentPassword('');
-    setNewPassword('');
-    setConfirmPassword('');
-    setSaveSuccess(true);
-    
-    // Hide success message after 3 seconds
-    setTimeout(() => {
-      setSaveSuccess(false);
-    }, 3000);
+    await changePassword({ variables: { oldPassword: currentPassword, newPassword } });
   };
 
   const handleSaveSettings = () => {
@@ -527,8 +528,9 @@ export default function SettingsPage() {
                       <button
                         type="submit"
                         className="btn btn-primary"
+                        disabled={loading}
                       >
-                        Mettre à jour le mot de passe
+                        {loading ? 'Changement...' : 'Changer le mot de passe'}
                       </button>
                     </div>
                   </form>

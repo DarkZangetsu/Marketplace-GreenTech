@@ -5,6 +5,11 @@ import { useState, useEffect } from 'react';
 import { Menu, X, ChevronDown, Search, Heart, User, LogOut, MessageCircle } from 'lucide-react';
 import { Menu as HeadlessMenu, Transition } from '@headlessui/react';
 import toast, { Toaster } from 'react-hot-toast';
+import Image from 'next/image';
+import { getProfilePictureUrl } from '@/app/components/messages/Helper';
+import { useQuery } from '@apollo/client';
+import { MY_MESSAGES } from '@/lib/graphql/queries';
+import { GET_ME } from '@/lib/graphql/queries';
 
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
@@ -14,6 +19,24 @@ export default function Navbar() {
   const [user, setUser] = useState(null);
   const [searchQuery, setSearchQuery] = useState('');
   const [isSearchFocused, setIsSearchFocused] = useState(false);
+
+  // Requête pour récupérer les données de l'utilisateur
+  const { data: userData } = useQuery(GET_ME, {
+    skip: !isAuthenticated,
+    onCompleted: (data) => {
+      if (data?.me) {
+        setUser(data.me);
+        // Mettre à jour le localStorage avec les données complètes
+        localStorage.setItem('user', JSON.stringify(data.me));
+      }
+    }
+  });
+
+  const { data: messagesData, refetch: refetchMessages } = useQuery(MY_MESSAGES, { 
+    fetchPolicy: 'cache-and-network',
+    skip: !isAuthenticated
+  });
+  const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
     setIsClient(true);
@@ -40,6 +63,13 @@ export default function Navbar() {
     window.addEventListener('scroll', handleScroll);
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
+
+  useEffect(() => {
+    if (messagesData?.myMessages) {
+      const count = messagesData.myMessages.filter(msg => !msg.isRead && msg.receiver?.id === user?.id).length;
+      setUnreadCount(count);
+    }
+  }, [messagesData, user?.id]);
 
   const checkAuthStatus = () => {
     const token = localStorage.getItem('token');
@@ -166,7 +196,11 @@ export default function Navbar() {
                     className="relative p-2 text-gray-600 hover:text-green-600 hover:bg-green-50 rounded-full transition-all duration-200"
                   >
                     <MessageCircle className="h-5 w-5" />
-                    <span className="absolute -top-1 -right-1 h-3 w-3 bg-red-500 rounded-full"></span>
+                    {unreadCount > 0 && (
+                      <span className="absolute -top-1 -right-1 h-4 w-4 bg-red-500 text-white text-xs flex items-center justify-center rounded-full font-bold">
+                        {unreadCount > 9 ? '9+' : unreadCount}
+                      </span>
+                    )}
                   </Link>
 
                   {/* Favoris */}
@@ -180,11 +214,21 @@ export default function Navbar() {
                   {/* Menu utilisateur */}
                   <HeadlessMenu as="div" className="relative">
                     <HeadlessMenu.Button className="flex items-center space-x-2 p-2 text-gray-700 hover:text-green-600 hover:bg-green-50 rounded-full transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-green-500/20">
-                      <div className="w-8 h-8 bg-gradient-to-r from-green-500 to-emerald-500 rounded-full flex items-center justify-center">
-                        <span className="text-white text-sm font-medium">
-                          {user?.username?.charAt(0).toUpperCase() || 'U'}
-                        </span>
-                      </div>
+                      {user?.profilePicture ? (
+                        <Image
+                          src={getProfilePictureUrl(user.profilePicture)}
+                          alt={user.username || 'Profil'}
+                          width={32}
+                          height={32}
+                          className="w-8 h-8 rounded-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-8 h-8 bg-gradient-to-r from-green-500 to-emerald-500 rounded-full flex items-center justify-center">
+                          <span className="text-white text-sm font-medium">
+                            {user?.username?.charAt(0).toUpperCase() || 'U'}
+                          </span>
+                        </div>
+                      )}
                       <ChevronDown className="h-4 w-4" />
                     </HeadlessMenu.Button>
                     <Transition

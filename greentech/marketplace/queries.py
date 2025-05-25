@@ -45,7 +45,7 @@ class ListingType(DjangoObjectType):
 class MessageType(DjangoObjectType):
     class Meta:
         model = Message
-        fields = ('id', 'listing', 'sender', 'receiver', 'message', 'is_read', 'created_at')
+        fields = ('id', 'listing', 'sender', 'receiver', 'message', 'is_read', 'created_at', 'attachment', 'attachment_type')
 
 
 class FavoriteType(DjangoObjectType):

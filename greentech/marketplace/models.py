@@ -77,6 +77,8 @@ class Message(models.Model):
     message = models.TextField()
     is_read = models.BooleanField(default=False)
     created_at = models.DateTimeField(auto_now_add=True)
+    attachment = models.FileField(upload_to='message_attachments/', null=True, blank=True)
+    attachment_type = models.CharField(max_length=20, null=True, blank=True)  # 'image', 'video', 'file'
 
     def __str__(self):
         return f"Message from {self.sender} to {self.receiver}"

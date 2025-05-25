@@ -18,17 +18,24 @@ export const formatMessageDate = (dateString) => {
 };
 
 export const getFullName = (user) => {
-  if (!user) return 'Utilisateur inconnu';
-  if (user.firstName && user.lastName) {
-    return `${user.firstName} ${user.lastName}`;
-  }
-  return user.username || 'Utilisateur';
+  if (!user) return '';
+  return `${user.firstName || ''} ${user.lastName || ''}`.trim() || user.username;
 };
 
-export const getImageUrl = (imagePath) => {
-  if (!imagePath) return null;
-  if (imagePath.startsWith('http')) {
-    return imagePath;
-  }
-  return `http://localhost:8000/media/${imagePath}`;
+export const getImageUrl = (url) => {
+  if (!url) return null;
+  if (url.startsWith('http')) return url;
+  return `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}${url}`;
+};
+
+export const getFileUrl = (url) => {
+  if (!url) return null;
+  if (url.startsWith('http')) return url;
+  return `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}${url}`;
+};
+
+export const getProfilePictureUrl = (url) => {
+  if (!url) return '/default-avatar.png';
+  if (url.startsWith('http')) return url;
+  return `http://localhost:8000/media/${url}`;
 };

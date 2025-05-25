@@ -4,7 +4,7 @@
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { MessageSquare, Send, User, ArrowLeft, Package, Search, MoreVertical } from 'lucide-react';
+import { MessageSquare, Send, User, ArrowLeft, Package, Search, MoreVertical, Image as ImageIcon, Paperclip, Smile } from 'lucide-react';
 import { useQuery, useMutation } from '@apollo/client';
 import { GET_CONVERSATION, GET_ME, MY_MESSAGES } from '@/lib/graphql/queries';
 import { MARK_MESSAGE_AS_READ, SEND_MESSAGE } from '@/lib/graphql/mutations';
@@ -12,8 +12,43 @@ import { useWebSocket } from '@/lib/hooks/useWebSocket';
 import Image from 'next/image';
 import Navbar from '@/app/components/Navbar';
 import { StatusIndicator } from '@/app/components/messages/StatusIndicator';
-import { formatDate, formatMessageDate, getFullName, getImageUrl } from '@/app/components/messages/Helper';
+import { formatDate, formatMessageDate, getFullName, getProfilePictureUrl, getFileUrl } from '@/app/components/messages/Helper';
+import data from '@emoji-mart/data';
+import Picker from '@emoji-mart/react';
 
+const getAttachmentType = (filename) => {
+  if (!filename) return 'file';
+  const ext = filename.split('.').pop().toLowerCase();
+  if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'].includes(ext)) return 'image';
+  if (['mp4', 'webm', 'ogg', 'mov'].includes(ext)) return 'video';
+  if (['mp3', 'wav', 'ogg'].includes(ext)) return 'audio';
+  if (['pdf'].includes(ext)) return 'pdf';
+  if (['txt', 'md', 'csv', 'json'].includes(ext)) return 'text';
+  return 'file';
+};
+
+function Lightbox({ open, onClose, url, type }) {
+  if (!open) return null;
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-80" onClick={onClose}>
+      <div className="relative max-w-3xl w-full max-h-[90vh] flex flex-col items-center" onClick={e => e.stopPropagation()}>
+        <button onClick={onClose} className="absolute top-2 right-2 text-white text-2xl font-bold z-10">×</button>
+        {type === 'image' ? (
+          <img src={url} alt="Aperçu" className="max-h-[80vh] max-w-full rounded-lg" />
+        ) : type === 'video' ? (
+          <video src={url} controls autoPlay className="max-h-[80vh] max-w-full rounded-lg bg-black" />
+        ) : null}
+        <a
+          href={url}
+          download
+          className="mt-4 px-4 py-2 bg-white text-gray-800 rounded shadow hover:bg-gray-100"
+        >
+          Télécharger
+        </a>
+      </div>
+    </div>
+  );
+}
 
 export default function MessagesPage() {
   const searchParams = useSearchParams();
@@ -30,6 +65,12 @@ export default function MessagesPage() {
   // États pour les messages temps réel
   const [allMessages, setAllMessages] = useState([]);
   const [lastMessageUpdate, setLastMessageUpdate] = useState(Date.now());
+
+  const [showEmojiPicker, setShowEmojiPicker] = useState(false);
+  const [selectedFile, setSelectedFile] = useState(null);
+  const fileInputRef = useRef(null);
+
+  const [lightbox, setLightbox] = useState({ open: false, url: '', type: '' });
 
   // GraphQL queries et mutations
   const { data: userData } = useQuery(GET_ME);
@@ -50,6 +91,7 @@ export default function MessagesPage() {
   onCompleted: (data) => {
     console.log('Message envoyé avec succès:', data);
     setNewMessage('');
+    setSelectedFile(null);
     
     // Ajouter le message envoyé immédiatement à l'état local
     if (data.sendMessage) {
@@ -394,21 +436,56 @@ export default function MessagesPage() {
   const handleSendMessage = async (e) => {
     e.preventDefault();
 
-    if (!newMessage.trim() || !activeConversation || sendingMessage || !activeConversation.otherUser || !activeConversation.listing) return;
+    if ((!newMessage.trim() && !selectedFile) || !activeConversation || sendingMessage || !activeConversation.otherUser || !activeConversation.listing) return;
 
     console.log('Envoi du message:', newMessage);
 
     try {
-      await sendMessage({
-        variables: {
-          listingId: activeConversation.listing.id,
-          message: newMessage,
-          receiverId: activeConversation.otherUser.id
+      const variables = {
+        listingId: activeConversation.listing.id,
+        message: newMessage,
+        receiverId: activeConversation.otherUser.id
+      };
+
+      if (selectedFile) {
+        variables.attachment = selectedFile;
+        // Déterminer le type de fichier plus précisément
+        if (selectedFile.type.startsWith('image/')) {
+          variables.attachmentType = 'image';
+        } else if (selectedFile.type.startsWith('video/')) {
+          variables.attachmentType = 'video';
+        } else if (selectedFile.type.startsWith('audio/')) {
+          variables.attachmentType = 'audio';
+        } else if (selectedFile.type === 'application/pdf') {
+          variables.attachmentType = 'pdf';
+        } else if (selectedFile.type.startsWith('text/')) {
+          variables.attachmentType = 'text';
+        } else {
+          variables.attachmentType = 'file';
         }
+      }
+
+      await sendMessage({
+        variables
       });
+
+      setNewMessage('');
+      setSelectedFile(null);
     } catch (error) {
       console.error('Erreur lors de l\'envoi du message:', error);
     }
+  };
+
+  const handleFileSelect = (e) => {
+    const file = e.target.files[0];
+    if (file) {
+      setSelectedFile(file);
+    }
+  };
+
+  const handleEmojiSelect = (emoji) => {
+    setNewMessage(prev => prev + emoji.native);
+    setShowEmojiPicker(false);
   };
 
   // Marquer un message comme lu
@@ -577,7 +654,7 @@ export default function MessagesPage() {
                           <div className="w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center overflow-hidden">
                             {conversation.otherUser.profilePicture ? (
                               <Image
-                                src={getImageUrl(conversation.otherUser.profilePicture)}
+                                src={getProfilePictureUrl(conversation.otherUser.profilePicture)}
                                 alt={getFullName(conversation.otherUser)}
                                 className="w-full h-full object-cover"
                                 width={48}
@@ -589,7 +666,7 @@ export default function MessagesPage() {
                           </div>
                           <div className="absolute -bottom-1 -right-1">
                             <StatusIndicator 
-                              isOnline={onlineUsers.has(conversation.otherUser.id)} 
+                              isOnline={onlineUsers && onlineUsers.has && onlineUsers.has(String(conversation.otherUser.id))} 
                               userId={conversation.otherUser.id}
                               onlineUsers={onlineUsers}
                             />
@@ -657,7 +734,7 @@ export default function MessagesPage() {
                       <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center overflow-hidden">
                         {activeConversation.otherUser.profilePicture ? (
                           <Image
-                            src={getImageUrl(activeConversation.otherUser.profilePicture)}
+                            src={getProfilePictureUrl(activeConversation.otherUser.profilePicture)}
                             alt={getFullName(activeConversation.otherUser)}
                             className="w-full h-full object-cover"
                             width={40}
@@ -669,7 +746,7 @@ export default function MessagesPage() {
                       </div>
                       <div className="absolute -bottom-1 -right-1">
                         <StatusIndicator 
-                          isOnline={onlineUsers.has(activeConversation.otherUser.id)} 
+                          isOnline={onlineUsers && onlineUsers.has && onlineUsers.has(String(activeConversation.otherUser.id))} 
                           userId={activeConversation.otherUser.id}
                           onlineUsers={onlineUsers}
                         />
@@ -679,8 +756,8 @@ export default function MessagesPage() {
                     <div>
                       <h3 className="font-medium text-gray-900">{getFullName(activeConversation.otherUser)}</h3>
                       <div className="flex items-center text-xs text-gray-500">
-                        <div className={`w-2 h-2 rounded-full mr-2 ${onlineUsers.has(activeConversation.otherUser.id) ? 'bg-green-500' : 'bg-gray-400'}`} />
-                        {onlineUsers.has(activeConversation.otherUser.id) ? 'En ligne' : 'Hors ligne'}
+                        <div className={`w-2 h-2 rounded-full mr-2 ${onlineUsers && onlineUsers.has && onlineUsers.has(String(activeConversation.otherUser.id)) ? 'bg-green-500' : 'bg-gray-400'}`} />
+                        {onlineUsers && onlineUsers.has && onlineUsers.has(String(activeConversation.otherUser.id)) ? 'En ligne' : 'Hors ligne'}
                       </div>
                     </div>
                   </div>
@@ -719,6 +796,8 @@ export default function MessagesPage() {
                       const isFromMe = message.sender.id === currentUser?.id;
                       const showDate = index === 0 ||
                         new Date(conversationMessages[index - 1].createdAt).toDateString() !== new Date(message.createdAt).toDateString();
+                      const type = message.attachment_type || getAttachmentType(message.attachment);
+                      const url = message.attachment ? `http://localhost:8000/media/${message.attachment}` : null;
 
                       return (
                         <div key={message.id}>
@@ -729,21 +808,65 @@ export default function MessagesPage() {
                               </span>
                             </div>
                           )}
-
                           <div className={`flex ${isFromMe ? 'justify-end' : 'justify-start'}`}>
                             <div className={`max-w-[75%] sm:max-w-[60%] ${isFromMe ? 'order-2' : 'order-1'}`}>
-                              <div
-                                className={`rounded-2xl px-4 py-2 ${isFromMe
+                              {/* Affichage du fichier, SANS bulle colorée */}
+                              {message.attachment && url && (
+                                type === 'image' ? (
+                                  <>
+                                    <div className="relative w-full max-w-md mb-2 cursor-pointer" onClick={() => setLightbox({ open: true, url, type })}>
+                                      <Image
+                                        src={url}
+                                        alt="Image attachée"
+                                        width={400}
+                                        height={300}
+                                        className="rounded-lg object-cover"
+                                        unoptimized
+                                      />
+                                    </div>
+                                    <Lightbox open={lightbox.open && lightbox.url === url && lightbox.type === 'image'} onClose={() => setLightbox({ open: false, url: '', type: '' })} url={url} type="image" />
+                                  </>
+                                ) : type === 'video' ? (
+                                  <>
+                                    <div className="relative w-full max-w-md mb-2 cursor-pointer" onClick={() => setLightbox({ open: true, url, type })}>
+                                      <video src={url} controls className="rounded-lg max-w-md bg-black" style={{ maxHeight: 300 }} />
+                                    </div>
+                                    <Lightbox open={lightbox.open && lightbox.url === url && lightbox.type === 'video'} onClose={() => setLightbox({ open: false, url: '', type: '' })} url={url} type="video" />
+                                  </>
+                                ) : type === 'audio' ? (
+                                  <audio src={url} controls className="w-full mb-2" />
+                                ) : type === 'pdf' ? (
+                                  <a
+                                    href={url}
+                                    download
+                                    className="text-sm text-blue-700 hover:underline flex items-center mb-2"
+                                  >
+                                    <Paperclip size={16} className="text-gray-500 mr-1" />
+                                    {message.attachment.split('/').pop()}
+                                  </a>
+                                ) : (
+                                  <a
+                                    href={url}
+                                    download
+                                    className="text-sm text-blue-700 hover:underline flex items-center mb-2"
+                                  >
+                                    <Paperclip size={16} className="text-gray-500 mr-1" />
+                                    {message.attachment.split('/').pop()}
+                                  </a>
+                                )
+                              )}
+                              {/* Bulle colorée UNIQUEMENT pour le texte/emoji */}
+                              {message.message && (
+                                <div
+                                  className={`rounded-2xl px-4 py-2 ${isFromMe
                                     ? 'bg-green-500 text-white rounded-br-md'
                                     : 'bg-gray-100 text-gray-800 rounded-bl-md'
                                   }`}
-                              >
-                                <p className="text-sm break-words whitespace-pre-wrap">{message.message}</p>
-                              </div>
-                              <p className={`text-xs mt-1 px-2 ${isFromMe ? 'text-right text-gray-500' : 'text-left text-gray-500'
-                                }`}>
-                                {formatMessageDate(message.createdAt)}
-                              </p>
+                                >
+                                  <p className="text-sm break-words whitespace-pre-wrap">{message.message}</p>
+                                </div>
+                              )}
+                              <p className={`text-xs mt-1 px-2 ${isFromMe ? 'text-right text-gray-500' : 'text-left text-gray-500'}`}>{formatMessageDate(message.createdAt)}</p>
                             </div>
                           </div>
                         </div>
@@ -758,42 +881,93 @@ export default function MessagesPage() {
               <div className="border-t border-gray-200 p-4 bg-white flex-shrink-0">
                 <form onSubmit={handleSendMessage} className="flex items-end space-x-3">
                   <div className="flex-1">
-                    <textarea
-                      placeholder="Écrivez votre message..."
-                      className="w-full border border-gray-300 rounded-2xl px-4 py-3 focus:ring-2 focus:ring-green-500 focus:border-transparent resize-none text-sm"
-                      value={newMessage}
-                      onChange={(e) => setNewMessage(e.target.value)}
-                      disabled={sendingMessage}
-                      rows={1}
-                      style={{
-                        minHeight: '44px',
-                        maxHeight: '120px',
-                        height: 'auto'
-                      }}
-                      onInput={(e) => {
-                        e.target.style.height = 'auto';
-                        e.target.style.height = e.target.scrollHeight + 'px';
-                      }}
-                      onKeyDown={(e) => {
-                        if (e.key === 'Enter' && !e.shiftKey) {
-                          e.preventDefault();
-                          handleSendMessage(e);
-                        }
-                      }}
+                    <div className="relative">
+                      <textarea
+                        placeholder="Écrivez votre message..."
+                        className="w-full border border-gray-300 rounded-2xl px-4 py-3 focus:ring-2 focus:ring-green-500 focus:border-transparent resize-none text-sm"
+                        value={newMessage}
+                        onChange={(e) => setNewMessage(e.target.value)}
+                        disabled={sendingMessage}
+                        rows={1}
+                        style={{
+                          minHeight: '44px',
+                          maxHeight: '120px',
+                          height: 'auto'
+                        }}
+                        onInput={(e) => {
+                          e.target.style.height = 'auto';
+                          e.target.style.height = e.target.scrollHeight + 'px';
+                        }}
+                        onKeyDown={(e) => {
+                          if (e.key === 'Enter' && !e.shiftKey) {
+                            e.preventDefault();
+                            handleSendMessage(e);
+                          }
+                        }}
+                      />
+                      {selectedFile && (
+                        <div className="absolute bottom-0 left-0 right-0 p-2 bg-gray-50 border-t border-gray-200 rounded-b-2xl">
+                          <div className="flex items-center justify-between">
+                            <span className="text-sm text-gray-600 truncate">{selectedFile.name}</span>
+                            <button
+                              type="button"
+                              onClick={() => setSelectedFile(null)}
+                              className="text-gray-500 hover:text-gray-700"
+                            >
+                              ×
+                            </button>
+                          </div>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <button
+                      type="button"
+                      onClick={() => fileInputRef.current?.click()}
+                      className="text-gray-500 hover:text-gray-700 p-2"
+                    >
+                      <Paperclip size={20} />
+                    </button>
+                    <input
+                      type="file"
+                      ref={fileInputRef}
+                      onChange={handleFileSelect}
+                      className="hidden"
+                      accept="image/*,video/*,.pdf,.doc,.docx,.xls,.xlsx"
+                    />
+                    <button
+                      type="button"
+                      onClick={() => setShowEmojiPicker(!showEmojiPicker)}
+                      className="text-gray-500 hover:text-gray-700 p-2"
+                    >
+                      <Smile size={20} />
+                    </button>
+                    <button
+                      type="submit"
+                      className="bg-green-500 text-white p-3 rounded-full hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex-shrink-0"
+                      disabled={sendingMessage || (!newMessage.trim() && !selectedFile)}
+                    >
+                      {sendingMessage ? (
+                        <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full" />
+                      ) : (
+                        <Send size={16} />
+                      )}
+                    </button>
+                  </div>
+                </form>
+                {showEmojiPicker && (
+                  <div className="absolute bottom-20 right-4">
+                    <Picker
+                      data={data}
+                      onEmojiSelect={handleEmojiSelect}
+                      theme="light"
+                      set="native"
+                      previewPosition="none"
+                      skinTonePosition="none"
                     />
                   </div>
-                  <button
-                    type="submit"
-                    className="bg-green-500 text-white p-3 rounded-full hover:bg-green-600 disabled:opacity-50 disabled:cursor-not-allowed transition-colors flex-shrink-0"
-                    disabled={sendingMessage || !newMessage.trim()}
-                  >
-                    {sendingMessage ? (
-                      <div className="animate-spin w-4 h-4 border-2 border-white border-t-transparent rounded-full" />
-                    ) : (
-                      <Send size={16} />
-                    )}
-                  </button>
-                </form>
+                )}
               </div>
             </>
           ) : (

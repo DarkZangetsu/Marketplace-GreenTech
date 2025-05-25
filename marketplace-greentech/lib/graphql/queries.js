@@ -349,6 +349,8 @@ export const MY_MESSAGES = gql`
       message
       isRead
       createdAt
+      attachment
+      attachmentType
       sender {
         id
         username
@@ -364,12 +366,16 @@ export const MY_MESSAGES = gql`
           message
           isRead
           createdAt
+          attachment
+          attachmentType
         }
         receivedMessages {
           id
           message
           isRead
           createdAt
+          attachment
+          attachmentType
         }
       }
       listing {

@@ -1,15 +1,22 @@
 /* eslint-disable react/no-unescaped-entities */
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
 import { User, Package, MessageSquare, Heart, Settings, Edit3, Camera } from 'lucide-react';
 import { useMutation, useQuery } from '@apollo/client';
-import { UPDATE_USER_PROFILE } from '@/lib/graphql/mutations';
+import { UPDATE_USER_PROFILE, UPLOAD_PROFILE_PICTURE } from '@/lib/graphql/mutations';
 import { useRouter } from 'next/navigation';
 import { toast } from 'react-hot-toast';
 import Image from 'next/image';
 import { GET_ALL_LISTINGS, GET_LISTINGS_WITH_MESSAGES} from '@/lib/graphql/queries';
+
+// Fonction utilitaire pour l'URL de la photo de profil
+const getProfilePictureUrl = (url) => {
+  if (!url) return '/default-avatar.png';
+  if (url.startsWith('http')) return url;
+  return `http://localhost:8000/media/${url}`;
+};
 
 export default function DashboardPage() {
   const router = useRouter();
@@ -105,6 +112,40 @@ export default function DashboardPage() {
       }
     }
   });
+
+  const [uploadProfilePicture] = useMutation(UPLOAD_PROFILE_PICTURE, {
+    onCompleted: (data) => {
+      if (data.uploadProfilePicture.success) {
+        const updatedUser = data.uploadProfilePicture.user;
+        localStorage.setItem('user', JSON.stringify(updatedUser));
+        setUser(updatedUser);
+        toast.success('Photo de profil mise à jour !');
+      } else {
+        toast.error(data.uploadProfilePicture.message || 'Erreur lors de la mise à jour de la photo');
+      }
+    },
+    onError: (error) => {
+      toast.error('Erreur lors de la mise à jour de la photo');
+      console.error('Upload profile picture error:', error);
+    }
+  });
+
+  const fileInputRef = useRef(null);
+
+  const handleProfilePicClick = () => {
+    fileInputRef.current?.click();
+  };
+
+  const handleProfilePicChange = async (e) => {
+    const file = e.target.files[0];
+    if (!file) return;
+    const reader = new FileReader();
+    reader.onloadend = async () => {
+      const base64 = reader.result;
+      await uploadProfilePicture({ variables: { imageData: base64 } });
+    };
+    reader.readAsDataURL(file);
+  };
 
   const handleChange = (e) => {
     const { name, value } = e.target;
@@ -225,8 +266,8 @@ export default function DashboardPage() {
                     <div className="w-24 h-24 bg-gray-200 rounded-full flex items-center justify-center">
                       {user.profilePicture ? (
                         <Image
-                          src={user.profilePicture} 
-                          alt={user.username || 'Profil'} 
+                          src={getProfilePictureUrl(user.profilePicture)}
+                          alt={user.username || 'Profil'}
                           width={96}
                           height={96}
                           className="w-full h-full rounded-full object-cover"
@@ -235,8 +276,19 @@ export default function DashboardPage() {
                         <User size={40} className="text-gray-400" />
                       )}
                     </div>
-                    <button className="absolute bottom-0 right-0 bg-green-600 text-white p-2 rounded-full hover:bg-green-700">
+                    <button
+                      className="absolute bottom-0 right-0 bg-green-600 text-white p-2 rounded-full hover:bg-green-700"
+                      onClick={handleProfilePicClick}
+                      type="button"
+                    >
                       <Camera size={14} />
+                      <input
+                        type="file"
+                        accept="image/*"
+                        ref={fileInputRef}
+                        onChange={handleProfilePicChange}
+                        className="hidden"
+                      />
                     </button>
                   </div>
                   <h3 className="text-xl font-semibold text-gray-900">{user.username || 'Utilisateur'}</h3>

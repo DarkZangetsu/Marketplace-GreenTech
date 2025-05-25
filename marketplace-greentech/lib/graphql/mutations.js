@@ -185,13 +185,15 @@ export const UPDATE_LISTING = gql`
 
 // Mutation pour envoyer un message
 export const SEND_MESSAGE = gql`
-  mutation SendMessage($listingId: ID!, $message: String!, $receiverId: ID!) {
-    sendMessage(listingId: $listingId, message: $message, receiverId: $receiverId) {
+  mutation SendMessage($listingId: ID!, $message: String!, $receiverId: ID!, $attachment: Upload, $attachmentType: String) {
+    sendMessage(listingId: $listingId, message: $message, receiverId: $receiverId, attachment: $attachment, attachmentType: $attachmentType) {
       messageObj {
         id
         message
         isRead
         createdAt
+        attachment
+        attachmentType
         sender {
           id
           username
@@ -240,6 +242,35 @@ export const MARK_MESSAGE_AS_READ = gql`
         isRead
         createdAt
       }
+    }
+  }
+`;
+
+export const UPLOAD_PROFILE_PICTURE = gql`
+  mutation UploadProfilePicture($imageData: String!) {
+    uploadProfilePicture(imageData: $imageData) {
+      success
+      message
+      user {
+        id
+        username
+        email
+        firstName
+        lastName
+        phoneNumber
+        profilePicture
+        createdAt
+        updatedAt
+      }
+    }
+  }
+`;
+
+export const CHANGE_PASSWORD = gql`
+  mutation ChangePassword($oldPassword: String!, $newPassword: String!) {
+    changePassword(oldPassword: $oldPassword, newPassword: $newPassword) {
+      success
+      message
     }
   }
 `;

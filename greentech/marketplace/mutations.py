@@ -2,7 +2,7 @@ import graphene
 import graphql_jwt
 from graphene_file_upload.scalars import Upload
 
-from .userMutation import ChangePasswordMutation, LoginUserMutation, RegisterUserMutation, UpdateUserProfileMutation
+from .userMutation import ChangePasswordMutation, LoginUserMutation, RegisterUserMutation, UpdateUserProfileMutation, UploadProfilePictureMutation
 
 from .messageMutation import MarkMessageAsReadMutation, SendMessageMutation, ToggleFavoriteMutation
 
@@ -26,6 +26,7 @@ class Mutation(graphene.ObjectType):
     
     # User profile mutations
     update_user_profile = UpdateUserProfileMutation.Field()
+    uploadProfilePicture = UploadProfilePictureMutation.Field()
     
     # Category mutations
     create_category = CreateCategoryMutation.Field()

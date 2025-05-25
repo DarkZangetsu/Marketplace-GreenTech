@@ -2,6 +2,7 @@ import graphene
 from graphql_jwt.decorators import login_required
 from channels.layers import get_channel_layer
 from asgiref.sync import async_to_sync
+from graphene_file_upload.scalars import Upload
 
 from .queries import FavoriteType, MessageType
 from .models import User, Listing, Message, Favorite
@@ -11,11 +12,13 @@ class SendMessageMutation(graphene.Mutation):
         listing_id = graphene.ID(required=True)
         receiver_id = graphene.ID(required=True)
         message = graphene.String(required=True)
+        attachment = Upload(required=False)
+        attachment_type = graphene.String(required=False)
 
     message_obj = graphene.Field(MessageType)
     
     @login_required
-    def mutate(self, info, listing_id, receiver_id, message):
+    def mutate(self, info, listing_id, receiver_id, message, attachment=None, attachment_type=None):
         sender = info.context.user
         
         try:
@@ -33,7 +36,9 @@ class SendMessageMutation(graphene.Mutation):
             sender=sender,
             receiver=receiver,
             message=message,
-            is_read=False
+            is_read=False,
+            attachment=attachment,
+            attachment_type=attachment_type
         )
         
         try:
@@ -49,6 +54,8 @@ class SendMessageMutation(graphene.Mutation):
                         'message': {
                             'id': str(message_obj.id),
                             'message': message_obj.message,
+                            'attachment': message_obj.attachment.url if message_obj.attachment else None,
+                            'attachment_type': message_obj.attachment_type,
                             'sender': {
                                 'id': str(message_obj.sender.id),
                                 'username': message_obj.sender.username,
