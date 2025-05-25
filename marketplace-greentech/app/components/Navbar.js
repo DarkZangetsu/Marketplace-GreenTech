@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
-import { Menu, X, ChevronDown, Search, Heart, User, LogOut, MessageCircle } from 'lucide-react';
+import { Menu, X, ChevronDown, Search, Heart, User, LogOut, MessageCircle, BarChart2 } from 'lucide-react';
 import { Menu as HeadlessMenu, Transition } from '@headlessui/react';
 import toast, { Toaster } from 'react-hot-toast';
 import Image from 'next/image';
@@ -248,6 +248,11 @@ export default function Navbar() {
                           <MenuItemWithIcon href="/dashboard" icon={User}>
                             Mon tableau de bord
                           </MenuItemWithIcon>
+                          {user?.isStaff && (
+                            <MenuItemWithIcon href="/admin" icon={BarChart2}>
+                              Tableau de bord admin
+                            </MenuItemWithIcon>
+                          )}
                           <MenuItemWithIcon href="/messages" icon={MessageCircle}>
                             Messages
                           </MenuItemWithIcon>
