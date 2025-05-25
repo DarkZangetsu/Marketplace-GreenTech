@@ -12,6 +12,7 @@ def custom_jwt_payload(user, context=None):
     payload = {
         'user_id': user.pk, 
         'username': user.get_username(),
+        'is_staff': user.is_staff,
         'exp': now + timedelta(seconds=jwt_settings.JWT_EXPIRATION_DELTA.total_seconds()),
         'orig_iat': calendar.timegm(now.utctimetuple()),
     }

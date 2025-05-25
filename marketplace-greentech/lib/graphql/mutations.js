@@ -44,8 +44,12 @@ export const LOGIN_USER = gql`
         firstName
         lastName
         phoneNumber
+        profilePicture
+        createdAt
+        updatedAt
       }
       token
+      isStaff
     }
   }
 `;
@@ -269,6 +273,97 @@ export const UPLOAD_PROFILE_PICTURE = gql`
 export const CHANGE_PASSWORD = gql`
   mutation ChangePassword($oldPassword: String!, $newPassword: String!) {
     changePassword(oldPassword: $oldPassword, newPassword: $newPassword) {
+      success
+      message
+    }
+  }
+`;
+
+// Mutations pour le dashboard admin
+export const UPDATE_USER_STATUS = gql`
+  mutation UpdateUserStatus($userId: ID!, $isActive: Boolean!) {
+    updateUserStatus(userId: $userId, isActive: $isActive) {
+      success
+      message
+      user {
+        id
+        isActive
+      }
+    }
+  }
+`;
+
+export const DELETE_USER = gql`
+  mutation DeleteUser($userId: ID!) {
+    deleteUser(userId: $userId) {
+      success
+      message
+    }
+  }
+`;
+
+export const UPDATE_LISTING_STATUS = gql`
+  mutation UpdateListingStatus($listingId: ID!, $status: String!) {
+    updateListingStatus(listingId: $listingId, status: $status) {
+      success
+      message
+      listing {
+        id
+        status
+      }
+    }
+  }
+`;
+
+export const DELETE_LISTING_ADMIN = gql`
+  mutation DeleteListingAdmin($listingId: ID!) {
+    deleteListingAdmin(listingId: $listingId) {
+      success
+      message
+    }
+  }
+`;
+
+export const CREATE_CATEGORY = gql`
+  mutation CreateCategory($input: CategoryInput!) {
+    createCategory(input: $input) {
+      success
+      message
+      category {
+        id
+        name
+        slug
+      }
+    }
+  }
+`;
+
+export const UPDATE_CATEGORY = gql`
+  mutation UpdateCategory($id: ID!, $input: CategoryInput!) {
+    updateCategory(id: $id, input: $input) {
+      success
+      message
+      category {
+        id
+        name
+        slug
+      }
+    }
+  }
+`;
+
+export const DELETE_CATEGORY = gql`
+  mutation DeleteCategory($id: ID!) {
+    deleteCategory(id: $id) {
+      success
+      message
+    }
+  }
+`;
+
+export const HANDLE_REPORTED_CONTENT = gql`
+  mutation HandleReportedContent($reportId: ID!, $action: String!) {
+    handleReportedContent(reportId: $reportId, action: $action) {
       success
       message
     }

@@ -6,6 +6,7 @@ export const GET_ME = gql`
       id
       username
       email
+      isStaff 
       firstName
       lastName
       phoneNumber
@@ -407,6 +408,111 @@ export const MY_MESSAGES = gql`
         profilePicture
         createdAt
         updatedAt
+      }
+    }
+  }
+`;
+
+// Queries pour le dashboard admin
+export const GET_ADMIN_STATS = gql`
+  query GetAdminStats {
+    adminStats {
+      totalUsers
+      totalListings
+      totalCategories
+      totalMessages
+      activeUsers
+      activeListings
+      listingsByStatus {
+        status
+        count
+      }
+      usersByMonth {
+        month
+        count
+      }
+      listingsByMonth {
+        month
+        count
+      }
+    }
+  }
+`;
+
+export const GET_ALL_USERS = gql`
+  query GetAllUsers($search: String, $isActive: Boolean) {
+    allUsers(search: $search, isActive: $isActive) {
+      id
+      username
+      email
+      firstName
+      lastName
+      phoneNumber
+      profilePicture
+      isActive
+      isStaff
+      dateJoined
+      lastLogin
+      listingCount
+      messageCount
+    }
+  }
+`;
+
+export const GET_ALL_CATEGORIES = gql`
+  query GetAllCategories {
+    categories {
+      id
+      name
+      slug
+      listingCount
+      createdAt
+    }
+  }
+`;
+
+export const GET_ALL_LISTINGS_ADMIN = gql`
+  query GetAllListingsAdmin($status: String, $search: String) {
+    allListings(status: $status, search: $search) {
+      id
+      title
+      description
+      status
+      createdAt
+      updatedAt
+      user {
+        id
+        username
+        email
+      }
+      category {
+        id
+        name
+      }
+      images {
+        id
+        image
+      }
+    }
+  }
+`;
+
+export const GET_REPORTED_CONTENT = gql`
+  query GetReportedContent {
+    reportedContent {
+      id
+      type
+      reason
+      status
+      createdAt
+      reporter {
+        id
+        username
+      }
+      content {
+        id
+        title
+        description
       }
     }
   }

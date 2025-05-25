@@ -20,17 +20,41 @@ export default function LoginPage() {
   const [loginUser] = useMutation(LOGIN_USER, {
     onCompleted: (data) => {
       if (data.login.success) {
+        // Stocker le token
         localStorage.setItem('token', data.login.token);
-        localStorage.setItem('user', JSON.stringify(data.login.user));
-
+        
+        // Créer l'objet utilisateur avec isStaff explicite
+        const userData = {
+          ...data.login.user,
+          isStaff: Boolean(data.login.isStaff) // S'assurer que c'est un booléen
+        };
+        
+        // Debug - voir ce qui est stocké
+        console.log('Storing user data:', userData);
+        console.log('isStaff value:', userData.isStaff);
+        console.log('isStaff type:', typeof userData.isStaff);
+        
+        // Stocker les données utilisateur
+        localStorage.setItem('user', JSON.stringify(userData));
+  
+        // Dispatcher l'événement d'authentification
         window.dispatchEvent(new CustomEvent('authChanged', {
-          detail: { isAuthenticated: true, user: data.login.user }
+          detail: { 
+            isAuthenticated: true, 
+            user: userData 
+          }
         }));
-
+  
         toast.success('Connexion réussie !');
-
+  
         setTimeout(() => {
-          window.location.href = '/dashboard';
+          if (userData.isStaff) {
+            console.log('Redirecting to admin dashboard');
+            window.location.href = '/admin';
+          } else {
+            console.log('Redirecting to user dashboard');
+            window.location.href = '/dashboard';
+          }
         }, 1000);
       } else {
         setError(data.login.message);

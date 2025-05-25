@@ -89,6 +89,7 @@ class LoginUserMutation(graphene.Mutation):
 
     user = graphene.Field(UserType)
     token = graphene.String()
+    is_staff = graphene.Boolean()
     success = graphene.Boolean()
     message = graphene.String()
 
@@ -119,6 +120,7 @@ class LoginUserMutation(graphene.Mutation):
             return LoginUserMutation(
                 user=user,
                 token=token,
+                is_staff=user.is_staff,
                 success=True,
                 message="Connexion réussie!"
             )

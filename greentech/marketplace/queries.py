@@ -2,22 +2,61 @@ import graphene
 from graphene_django import DjangoObjectType
 from graphql_jwt.decorators import login_required
 from django.db.models import Q
+from django.db.models.functions import TruncMonth
+from django.db.models import Count
+from datetime import datetime
 
 from .models import User, Category, Listing, ListingImage, Message, Favorite
 
 
 class UserType(DjangoObjectType):
+    is_active = graphene.Boolean()
+    isActive = graphene.Boolean()
+    listing_count = graphene.Int()
+    message_count = graphene.Int()
+    dateJoined = graphene.DateTime()
+    lastLogin = graphene.DateTime()
+
     class Meta:
         model = User
         fields = ('id', 'username', 'email', 'first_name', 'last_name', 
                   'phone_number', 'profile_picture', 'created_at', 'updated_at',
-                  'listings', 'sent_messages', 'received_messages', 'favorites')
+                  'is_staff',
+                  'listings', 'sent_messages', 'received_messages', 'favorites',
+                  'date_joined', 'last_login')
+
+    def resolve_is_active(self, info):
+        return self.is_active
+
+    def resolve_isActive(self, info):
+        return self.is_active
+
+    def resolve_listing_count(self, info):
+        return self.listings.count()
+
+    def resolve_message_count(self, info):
+        return self.sent_messages.count() + self.received_messages.count()
+
+    def resolve_dateJoined(self, info):
+        return self.date_joined
+
+    def resolve_lastLogin(self, info):
+        return self.last_login
 
 
 class CategoryType(DjangoObjectType):
+    listing_count = graphene.Int()
+    listingCount = graphene.Int()
+
     class Meta:
         model = Category
         fields = ('id', 'name', 'slug', 'created_at', 'listings')
+
+    def resolve_listing_count(self, info):
+        return self.listings.count()
+
+    def resolve_listingCount(self, info):
+        return self.listings.count()
 
 
 class ListingImageType(DjangoObjectType):
@@ -52,6 +91,31 @@ class FavoriteType(DjangoObjectType):
     class Meta:
         model = Favorite
         fields = ('id', 'user', 'listing', 'created_at')
+
+
+class StatusCountType(graphene.ObjectType):
+    status = graphene.String()
+    count = graphene.Int()
+
+
+class MonthCountType(graphene.ObjectType):
+    month = graphene.String()
+    count = graphene.Int()
+
+
+class AdminStatsType(graphene.ObjectType):
+    total_users = graphene.Int()
+    total_listings = graphene.Int()
+    total_categories = graphene.Int()
+    total_messages = graphene.Int()
+    active_users = graphene.Int()
+    active_listings = graphene.Int()
+    listings_by_status = graphene.List(StatusCountType)
+    users_by_month = graphene.List(MonthCountType)
+    listings_by_month = graphene.List(MonthCountType)
+    listingsByStatus = graphene.List(StatusCountType)
+    usersByMonth = graphene.List(MonthCountType)
+    listingsByMonth = graphene.List(MonthCountType)
 
 
 class Query(graphene.ObjectType):
@@ -90,6 +154,23 @@ class Query(graphene.ObjectType):
     
     # Favorite queries
     my_favorites = graphene.List(FavoriteType)
+    
+    # Admin queries
+    admin_stats = graphene.Field(AdminStatsType)
+    
+    # New query
+    all_users = graphene.List(UserType, search=graphene.String(), is_active=graphene.Boolean())
+    
+    all_listings = graphene.List(
+        ListingType,
+        status=graphene.String(),
+        search=graphene.String()
+    )
+    allListings = graphene.List(
+        ListingType,
+        status=graphene.String(),
+        search=graphene.String()
+    )
     
     @login_required
     def resolve_me(self, info):
@@ -203,3 +284,80 @@ class Query(graphene.ObjectType):
     def resolve_my_favorites(self, info):
         user = info.context.user
         return Favorite.objects.filter(user=user).order_by('-created_at')
+
+    def resolve_admin_stats(self, info):
+        # Listings by status
+        listings_by_status = (
+            Listing.objects.values('status')
+            .annotate(count=Count('id'))
+        )
+        listings_by_status = [
+            StatusCountType(status=entry['status'], count=entry['count'])
+            for entry in listings_by_status
+        ]
+
+        # Users by month
+        users_by_month = (
+            User.objects.annotate(month=TruncMonth('date_joined'))
+            .values('month')
+            .annotate(count=Count('id'))
+            .order_by('month')
+        )
+        users_by_month = [
+            MonthCountType(month=entry['month'].strftime('%Y-%m'), count=entry['count'])
+            for entry in users_by_month if entry['month']
+        ]
+
+        # Listings by month
+        listings_by_month = (
+            Listing.objects.annotate(month=TruncMonth('created_at'))
+            .values('month')
+            .annotate(count=Count('id'))
+            .order_by('month')
+        )
+        listings_by_month = [
+            MonthCountType(month=entry['month'].strftime('%Y-%m'), count=entry['count'])
+            for entry in listings_by_month if entry['month']
+        ]
+
+        return AdminStatsType(
+            total_users=User.objects.count(),
+            total_listings=Listing.objects.count(),
+            total_categories=Category.objects.count(),
+            total_messages=Message.objects.count(),
+            active_users=User.objects.filter(is_active=True).count(),
+            active_listings=Listing.objects.filter(status='active').count(),
+            listings_by_status=listings_by_status,
+            users_by_month=users_by_month,
+            listings_by_month=listings_by_month,
+            listingsByStatus=listings_by_status,
+            usersByMonth=users_by_month,
+            listingsByMonth=listings_by_month,
+        )
+
+    def resolve_all_users(self, info, search=None, is_active=None):
+        qs = User.objects.all()
+        if is_active is not None:
+            qs = qs.filter(is_active=is_active)
+        if search:
+            qs = qs.filter(
+                Q(username__icontains=search) |
+                Q(email__icontains=search) |
+                Q(first_name__icontains=search) |
+                Q(last_name__icontains=search)
+            )
+        return qs.order_by('-date_joined')
+
+    def resolve_all_listings(self, info, status=None, search=None):
+        qs = Listing.objects.all()
+        if status:
+            qs = qs.filter(status=status)
+        if search:
+            qs = qs.filter(
+                Q(title__icontains=search) |
+                Q(description__icontains=search)
+            )
+        return qs.order_by('-created_at')
+
+    def resolve_allListings(self, info, status=None, search=None):
+        return Query.resolve_all_listings(self, info, status, search)
