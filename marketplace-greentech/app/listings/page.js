@@ -1,12 +1,26 @@
 /* eslint-disable react/no-unescaped-entities */
 'use client';
 
-import { useState, useMemo } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { useQuery } from '@apollo/client';
 import { GET_LISTINGS, GET_CATEGORIES } from '@/lib/graphql/queries';
 import Link from 'next/link';
 import Image from 'next/image';
-import { Search, Filter, MapPin, Calendar, ArrowUpDown, Grid, List } from 'lucide-react';
+import { Search, Filter, MapPin, Calendar, ArrowUpDown, Grid, List, ChevronLeft, ChevronRight } from 'lucide-react';
+
+function useDebouncedValue(value, delay) {
+  const [debounced, setDebounced] = useState(value);
+  const timeoutRef = useRef();
+  
+  useEffect(() => {
+    clearTimeout(timeoutRef.current);
+    timeoutRef.current = setTimeout(() => {
+      setDebounced(value);
+    }, delay);
+    return () => clearTimeout(timeoutRef.current);
+  }, [value, delay]);
+  return debounced;
+}
 
 export default function ListingsPage() {
   const [viewMode, setViewMode] = useState('grid');
@@ -25,16 +39,19 @@ export default function ListingsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 12;
 
+  // Debounced filters for Apollo query
+  const debouncedFilters = useDebouncedValue(filters, 500);
+
   const { data: categoriesData } = useQuery(GET_CATEGORIES);
   const { data: listingsData, loading, error } = useQuery(GET_LISTINGS, {
     variables: {
-      search: filters.search || undefined,
-      categoryId: filters.categoryId || undefined,
-      condition: filters.condition || undefined,
-      minPrice: filters.minPrice ? parseFloat(filters.minPrice) : undefined,
-      maxPrice: filters.maxPrice ? parseFloat(filters.maxPrice) : undefined,
-      location: filters.location || undefined,
-      status: filters.status
+      search: debouncedFilters.search || undefined,
+      categoryId: debouncedFilters.categoryId || undefined,
+      condition: debouncedFilters.condition || undefined,
+      minPrice: debouncedFilters.minPrice ? parseFloat(debouncedFilters.minPrice) : undefined,
+      maxPrice: debouncedFilters.maxPrice ? parseFloat(debouncedFilters.maxPrice) : undefined,
+      location: debouncedFilters.location || undefined,
+      status: debouncedFilters.status
     }
   });
 
@@ -433,6 +450,35 @@ export default function ListingsPage() {
                       ) : (
                         'Charger plus d\'annonces'
                       )}
+                    </button>
+                  </div>
+                )}
+
+                {/* Pagination */}
+                {totalPages > 1 && (
+                  <div className="mt-8 flex justify-center items-center gap-2">
+                    <button
+                      onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                      disabled={currentPage === 1}
+                      className="px-3 py-1 rounded border border-gray-300 bg-white text-gray-700 hover:bg-gray-100 disabled:opacity-50"
+                    >
+                      <ChevronLeft size={18} />
+                    </button>
+                    {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                      <button
+                        key={page}
+                        onClick={() => setCurrentPage(page)}
+                        className={`px-3 py-1 rounded border ${page === currentPage ? 'bg-green-600 text-white border-green-600' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-100'}`}
+                      >
+                        {page}
+                      </button>
+                    ))}
+                    <button
+                      onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                      disabled={currentPage === totalPages}
+                      className="px-3 py-1 rounded border border-gray-300 bg-white text-gray-700 hover:bg-gray-100 disabled:opacity-50"
+                    >
+                      <ChevronRight size={18} />
                     </button>
                   </div>
                 )}
