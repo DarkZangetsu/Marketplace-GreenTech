@@ -127,12 +127,12 @@ export default function LoginPage() {
                     <h1 className="text-4xl lg:text-5xl font-bold mb-6 leading-tight">
                       Bienvenue sur
                       <br />
-                      <span className="text-green-200">ReUse Madagascar</span>
+                      <span className="text-green-200">GreenTech Marketplace</span>
                     </h1>
 
                     {/* Description */}
                     <p className="text-xl text-green-100 mb-8 leading-relaxed">
-                      Rejoignez la première plateforme malgache de réutilisation de matériaux. Donnez une seconde vie aux matériaux de construction et d'artisanat.
+                      Rejoignez la plateforme malgache de réutilisation de matériaux. Donnez une seconde vie aux matériaux de construction et d'artisanat.
                     </p>
 
                     {/* Points forts */}
