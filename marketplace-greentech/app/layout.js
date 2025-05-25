@@ -19,12 +19,12 @@ function ConditionalLayout({ children }) {
   useEffect(() => {
     let timeout;
     setLoading(true);
-    timeout = setTimeout(() => setLoading(false), 1000); // 2 secondes
+    timeout = setTimeout(() => setLoading(false), 1000);
     return () => clearTimeout(timeout);
   }, [pathname]);
 
   // Pages où on ne veut pas afficher navbar et footer
-  const othersPages = ['/auth/login', '/auth/register', '/dashboard/messages'];
+  const othersPages = ['/auth/login', '/auth/register', '/dashboard/messages', '/admin'];
   const isOthersPage = othersPages.includes(pathname);
 
   if (isOthersPage) {

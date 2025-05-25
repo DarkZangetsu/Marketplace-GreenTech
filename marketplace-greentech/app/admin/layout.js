@@ -14,7 +14,7 @@ export default function AdminLayout({ children }) {
   // Vérification directe avec le serveur
   const { data, loading, error } = useQuery(GET_ME, {
     errorPolicy: 'all',
-    fetchPolicy: 'cache-and-network', // Toujours vérifier avec le serveur
+    fetchPolicy: 'cache-and-network',
     onCompleted: (data) => {
       console.log('GET_ME response:', data);
       
