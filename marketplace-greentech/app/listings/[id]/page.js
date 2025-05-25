@@ -26,6 +26,7 @@ import { fr } from 'date-fns/locale';
 import { GET_LISTING, GET_ME } from '@/lib/graphql/queries';
 import { SEND_MESSAGE } from '@/lib/graphql/mutations';
 import { getProfilePictureUrl } from '@/app/components/messages/Helper';
+import { EditListingDetailModal } from '@/app/components/EditListingDetailModal';
 
 export default function ListingDetailPage({ params }) {
   // Utiliser React.use() pour déballer params
@@ -35,7 +36,7 @@ export default function ListingDetailPage({ params }) {
   const router = useRouter();
 
   // Fetch listing data from GraphQL API
-  const { loading, error, data } = useQuery(GET_LISTING, {
+  const { loading, error, data, refetch } = useQuery(GET_LISTING, {
     variables: { id },
   });
 
@@ -47,6 +48,7 @@ export default function ListingDetailPage({ params }) {
   const [message, setMessage] = useState('');
   const [isFavorite, setIsFavorite] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
+  const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
   // GraphQL mutation for sending message
   const [sendMessage, { loading: isSending }] = useMutation(SEND_MESSAGE, {
@@ -354,12 +356,12 @@ export default function ListingDetailPage({ params }) {
                 // Owner viewing their own listing
                 <div className="bg-blue-50 border border-blue-200 rounded-md p-4 text-center">
                   <p className="text-blue-700 mb-3">C'est votre annonce</p>
-                  <Link
-                    href={`/dashboard/listings/${id}/edit`}
+                  <button
+                    onClick={() => setIsEditModalOpen(true)}
                     className="btn btn-primary"
                   >
                     Modifier l'annonce
-                  </Link>
+                  </button>
                 </div>
               ) : !showContactForm ? (
                 // Contact button for other users
@@ -491,6 +493,17 @@ export default function ListingDetailPage({ params }) {
       </div>
 
       {/* Similar listings section would go here */}
+
+      {/* Ajouter le modal d'édition */}
+      <EditListingDetailModal
+        listing={listing}
+        isOpen={isEditModalOpen}
+        onClose={() => setIsEditModalOpen(false)}
+        onUpdate={() => {
+          // Rafraîchir les données de l'annonce
+          refetch();
+        }}
+      />
     </div>
   );
 }
