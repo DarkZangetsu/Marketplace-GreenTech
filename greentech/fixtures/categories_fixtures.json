@@ -1,34 +1,34 @@
 [
-    {"model": "marketplace.category", "fields": {"name": "Bois", "slug": "bois"}},
-    {"model": "marketplace.category", "fields": {"name": "Ciment / Béton / Mortier", "slug": "ciment-beton"}},
-    {"model": "marketplace.category", "fields": {"name": "Briques / Blocs", "slug": "briques-blocs"}},
-    {"model": "marketplace.category", "fields": {"name": "Métaux", "slug": "metaux"}},
-    {"model": "marketplace.category", "fields": {"name": "Tuiles / Toiture", "slug": "toiture"}},
-    {"model": "marketplace.category", "fields": {"name": "Plomberie", "slug": "plomberie"}},
-    {"model": "marketplace.category", "fields": {"name": "Électricité", "slug": "electricite"}},
-    {"model": "marketplace.category", "fields": {"name": "Peinture / Revêtements", "slug": "peinture-revetements"}},
-    {"model": "marketplace.category", "fields": {"name": "Fenêtres / Portes", "slug": "fenetres-portes"}},
-    {"model": "marketplace.category", "fields": {"name": "Verre / Vitrages", "slug": "verre"}},
-  
-    {"model": "marketplace.category", "fields": {"name": "Outils manuels", "slug": "outils-manuels"}},
-    {"model": "marketplace.category", "fields": {"name": "Outils électriques", "slug": "outils-electriques"}},
-    {"model": "marketplace.category", "fields": {"name": "Équipements de chantier", "slug": "equipement-chantier"}},
-    {"model": "marketplace.category", "fields": {"name": "Équipements de protection", "slug": "protection"}},
-  
-    {"model": "marketplace.category", "fields": {"name": "Tissus / Textiles", "slug": "tissus-textiles"}},
-    {"model": "marketplace.category", "fields": {"name": "Perles / Accessoires", "slug": "perles-accessoires"}},
-    {"model": "marketplace.category", "fields": {"name": "Bois d’artisanat", "slug": "bois-artisanat"}},
-    {"model": "marketplace.category", "fields": {"name": "Argile / Terre cuite", "slug": "argile-terre"}},
-    {"model": "marketplace.category", "fields": {"name": "Peintures / Encres", "slug": "peintures-encres"}},
-  
-    {"model": "marketplace.category", "fields": {"name": "Meubles en bois", "slug": "meubles-bois"}},
-    {"model": "marketplace.category", "fields": {"name": "Mobilier métallique", "slug": "mobilier-metal"}},
-    {"model": "marketplace.category", "fields": {"name": "Éléments de décoration", "slug": "decoration"}},
-    {"model": "marketplace.category", "fields": {"name": "Réutilisables divers", "slug": "materiaux-reutilisables"}},
-  
-    {"model": "marketplace.category", "fields": {"name": "Plastiques recyclables", "slug": "plastique"}},
-    {"model": "marketplace.category", "fields": {"name": "Cartons / Papiers", "slug": "carton-papier"}},
-    {"model": "marketplace.category", "fields": {"name": "Composites", "slug": "composites"}},
-    {"model": "marketplace.category", "fields": {"name": "Déchets électroniques", "slug": "deee"}}
-  ]
-  
+  {"model": "marketplace.category", "fields": {"name": "Bois", "slug": "bois", "created_at": "2025-01-01T00:00:00Z"}},
+  {"model": "marketplace.category", "fields": {"name": "Ciment / Béton / Mortier", "slug": "ciment-beton", "created_at": "2025-01-01T00:00:00Z"}},
+  {"model": "marketplace.category", "fields": {"name": "Briques / Blocs", "slug": "briques-blocs", "created_at": "2025-01-01T00:00:00Z"}},
+  {"model": "marketplace.category", "fields": {"name": "Métaux", "slug": "metaux", "created_at": "2025-01-01T00:00:00Z"}},
+  {"model": "marketplace.category", "fields": {"name": "Tuiles / Toiture", "slug": "toiture", "created_at": "2025-01-01T00:00:00Z"}},
+  {"model": "marketplace.category", "fields": {"name": "Plomberie", "slug": "plomberie", "created_at": "2025-01-01T00:00:00Z"}},
+  {"model": "marketplace.category", "fields": {"name": "Électricité", "slug": "electricite", "created_at": "2025-01-01T00:00:00Z"}},
+  {"model": "marketplace.category", "fields": {"name": "Peinture / Revêtements", "slug": "peinture-revetements", "created_at": "2025-01-01T00:00:00Z"}},
+  {"model": "marketplace.category", "fields": {"name": "Fenêtres / Portes", "slug": "fenetres-portes", "created_at": "2025-01-01T00:00:00Z"}},
+  {"model": "marketplace.category", "fields": {"name": "Verre / Vitrages", "slug": "verre", "created_at": "2025-01-01T00:00:00Z"}},
+
+  {"model": "marketplace.category", "fields": {"name": "Outils manuels", "slug": "outils-manuels", "created_at": "2025-01-01T00:00:00Z"}},
+  {"model": "marketplace.category", "fields": {"name": "Outils électriques", "slug": "outils-electriques", "created_at": "2025-01-01T00:00:00Z"}},
+  {"model": "marketplace.category", "fields": {"name": "Outils numériques / Électroniques", "slug": "outils-info-electronique", "created_at": "2025-01-01T00:00:00Z"}},
+  {"model": "marketplace.category", "fields": {"name": "Équipements de chantier", "slug": "equipement-chantier", "created_at": "2025-01-01T00:00:00Z"}},
+  {"model": "marketplace.category", "fields": {"name": "Équipements de protection", "slug": "protection", "created_at": "2025-01-01T00:00:00Z"}},
+
+  {"model": "marketplace.category", "fields": {"name": "Tissus / Textiles", "slug": "tissus-textiles", "created_at": "2025-01-01T00:00:00Z"}},
+  {"model": "marketplace.category", "fields": {"name": "Perles / Accessoires", "slug": "perles-accessoires", "created_at": "2025-01-01T00:00:00Z"}},
+  {"model": "marketplace.category", "fields": {"name": "Bois d’artisanat", "slug": "bois-artisanat", "created_at": "2025-01-01T00:00:00Z"}},
+  {"model": "marketplace.category", "fields": {"name": "Argile / Terre cuite", "slug": "argile-terre", "created_at": "2025-01-01T00:00:00Z"}},
+  {"model": "marketplace.category", "fields": {"name": "Peintures / Encres", "slug": "peintures-encres", "created_at": "2025-01-01T00:00:00Z"}},
+
+  {"model": "marketplace.category", "fields": {"name": "Meubles en bois", "slug": "meubles-bois", "created_at": "2025-01-01T00:00:00Z"}},
+  {"model": "marketplace.category", "fields": {"name": "Mobilier métallique", "slug": "mobilier-metal", "created_at": "2025-01-01T00:00:00Z"}},
+  {"model": "marketplace.category", "fields": {"name": "Éléments de décoration", "slug": "decoration", "created_at": "2025-01-01T00:00:00Z"}},
+  {"model": "marketplace.category", "fields": {"name": "Réutilisables divers", "slug": "materiaux-reutilisables", "created_at": "2025-01-01T00:00:00Z"}},
+
+  {"model": "marketplace.category", "fields": {"name": "Plastiques recyclables", "slug": "plastique", "created_at": "2025-01-01T00:00:00Z"}},
+  {"model": "marketplace.category", "fields": {"name": "Cartons / Papiers", "slug": "carton-papier", "created_at": "2025-01-01T00:00:00Z"}},
+  {"model": "marketplace.category", "fields": {"name": "Composites", "slug": "composites", "created_at": "2025-01-01T00:00:00Z"}},
+  {"model": "marketplace.category", "fields": {"name": "Déchets électroniques", "slug": "deee", "created_at": "2025-01-01T00:00:00Z"}}
+]

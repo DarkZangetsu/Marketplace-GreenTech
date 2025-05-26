@@ -29,21 +29,21 @@ export default function Navbar() {
     }
   });
 
-  const { data: messagesData } = useQuery(MY_MESSAGES, { 
+  const { data: messagesData } = useQuery(MY_MESSAGES, {
     fetchPolicy: 'cache-and-network',
     skip: !isAuthenticated
   });
-  
+
   const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
     setIsClient(true);
     checkAuthStatus();
-    
+
     const handleAuthChange = () => {
       checkAuthStatus();
     };
-    
+
     window.addEventListener('authChanged', handleAuthChange);
     return () => window.removeEventListener('authChanged', handleAuthChange);
   }, []);
@@ -67,7 +67,7 @@ export default function Navbar() {
   const checkAuthStatus = () => {
     const token = localStorage.getItem('token');
     const userData = localStorage.getItem('user');
-    
+
     if (token && userData) {
       setIsAuthenticated(true);
       try {
@@ -89,11 +89,11 @@ export default function Navbar() {
         localStorage.removeItem('user');
         setIsAuthenticated(false);
         setUser(null);
-        
-        window.dispatchEvent(new CustomEvent('authChanged', { 
-          detail: { isAuthenticated: false, user: null } 
+
+        window.dispatchEvent(new CustomEvent('authChanged', {
+          detail: { isAuthenticated: false, user: null }
         }));
-        
+
         window.location.href = '/';
         resolve();
       }, 1000);
@@ -119,7 +119,7 @@ export default function Navbar() {
 
   return (
     <>
-      <Toaster 
+      <Toaster
         position="top-right"
         toastOptions={{
           duration: 3000,
@@ -132,23 +132,25 @@ export default function Navbar() {
           },
         }}
       />
-      
-      <nav className={`fixed w-full z-50 transition-all duration-300 ${
-        isScrolled 
-          ? 'bg-white/95 backdrop-blur-md shadow-lg border-b border-gray-100' 
+
+      <nav className={`fixed w-full z-50 transition-all duration-300 ${isScrolled
+          ? 'bg-white/95 backdrop-blur-md shadow-lg border-b border-gray-100'
           : 'bg-white/90 backdrop-blur-sm'
-      }`}>
+        }`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex justify-between items-center h-16">
-            
+
             {/* Logo */}
             <div className="flex items-center">
               <Link href="/" className="flex-shrink-0 flex items-center group">
-                <div className="relative">
-                  <span className="text-2xl font-bold bg-gradient-to-r from-green-600 via-emerald-600 to-teal-600 bg-clip-text text-transparent group-hover:from-green-700 group-hover:via-emerald-700 group-hover:to-teal-700 transition-all duration-300">
-                    GreenTech
-                  </span>
-                  <div className="absolute -bottom-1 left-0 w-0 h-0.5 bg-gradient-to-r from-green-600 to-emerald-600 group-hover:w-full transition-all duration-300"></div>
+                <div className="relative flex items-center space-x-3">
+                  {/* Texte du nom */}
+                  <div className="relative">
+                    <span className="text-2xl font-bold bg-gradient-to-r from-green-600 via-emerald-600 to-teal-600 bg-clip-text text-transparent group-hover:from-green-700 group-hover:via-emerald-700 group-hover:to-teal-700 transition-all duration-300">
+                      GreenTech Marketplace
+                    </span>
+                    <div className="absolute -bottom-1 left-0 w-0 h-0.5 bg-gradient-to-r from-green-600 to-emerald-600 group-hover:w-full transition-all duration-300"></div>
+                  </div>
                 </div>
               </Link>
             </div>
@@ -203,7 +205,7 @@ export default function Navbar() {
                       )}
                       <ChevronDown className="h-4 w-4 group-hover:rotate-180 transition-transform duration-200" />
                     </HeadlessMenu.Button>
-                    
+
                     <Transition
                       enter="transition ease-out duration-200"
                       enterFrom="transform opacity-0 scale-95 translate-y-[-10px]"
@@ -238,7 +240,7 @@ export default function Navbar() {
                               </div>
                             </div>
                           </div>
-                          
+
                           {/* Menu items */}
                           <div className="py-1">
                             <MenuItemWithIcon href="/dashboard" icon={User}>
@@ -253,16 +255,15 @@ export default function Navbar() {
                               Messages
                             </MenuItemWithIcon>
                           </div>
-                          
+
                           <div className="border-t border-gray-100 my-1"></div>
-                          
+
                           <HeadlessMenu.Item>
                             {({ active }) => (
                               <button
                                 onClick={confirmLogout}
-                                className={`${
-                                  active ? 'bg-red-50 text-red-700' : 'text-red-600'
-                                } flex items-center space-x-3 w-full text-left px-4 py-3 text-sm transition-all duration-200 hover:bg-red-50 group`}
+                                className={`${active ? 'bg-red-50 text-red-700' : 'text-red-600'
+                                  } flex items-center space-x-3 w-full text-left px-4 py-3 text-sm transition-all duration-200 hover:bg-red-50 group`}
                               >
                                 <LogOut className="h-4 w-4 group-hover:scale-110 transition-transform duration-200" />
                                 <span className="font-medium">Déconnexion</span>
@@ -362,14 +363,14 @@ export default function Navbar() {
                       </div>
                     </div>
                   </div>
-                  
+
                   <MobileNavLink href="/dashboard" onClick={closeMobileMenu}>
                     Mon tableau de bord
                   </MobileNavLink>
                   <MobileNavLink href="/messages" onClick={closeMobileMenu}>
                     Messages {unreadCount > 0 && `(${unreadCount})`}
                   </MobileNavLink>
-                  
+
                   <button
                     onClick={confirmLogout}
                     className="block w-full text-left px-3 py-2 rounded-xl text-red-600 hover:text-red-700 hover:bg-red-50 transition-all duration-200 font-medium"
@@ -428,9 +429,8 @@ function MenuItemWithIcon({ href, icon: Icon, children, badge }) {
       {({ active }) => (
         <Link
           href={href}
-          className={`${
-            active ? 'bg-green-50 text-green-700' : 'text-gray-700'
-          } flex items-center justify-between px-4 py-3 text-sm transition-all duration-200 hover:bg-green-50 group`}
+          className={`${active ? 'bg-green-50 text-green-700' : 'text-gray-700'
+            } flex items-center justify-between px-4 py-3 text-sm transition-all duration-200 hover:bg-green-50 group`}
         >
           <div className="flex items-center space-x-3">
             <Icon className="h-4 w-4 group-hover:scale-110 transition-transform duration-200" />

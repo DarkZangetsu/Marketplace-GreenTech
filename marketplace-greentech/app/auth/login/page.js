@@ -118,10 +118,6 @@ export default function LoginPage() {
                   <div className="absolute bottom-0 left-0 w-48 h-48 bg-white/10 rounded-full translate-y-24 -translate-x-24"></div>
 
                   <div className="relative z-10">
-                    {/* Logo */}
-                    <div className="inline-flex items-center justify-center w-16 h-16 bg-white/20 backdrop-blur-sm rounded-2xl mb-8">
-                      <span className="text-white font-bold text-2xl">G</span>
-                    </div>
 
                     {/* Titre principal */}
                     <h1 className="text-4xl lg:text-5xl font-bold mb-6 leading-tight">
