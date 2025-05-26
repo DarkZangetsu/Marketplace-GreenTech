@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useState, useEffect } from 'react';
-import { Menu, X, ChevronDown, Search, Heart, User, LogOut, MessageCircle, BarChart2 } from 'lucide-react';
+import { Menu, X, ChevronDown, User, LogOut, MessageCircle, BarChart2 } from 'lucide-react';
 import { Menu as HeadlessMenu, Transition } from '@headlessui/react';
 import toast, { Toaster } from 'react-hot-toast';
 import Image from 'next/image';
@@ -17,8 +17,6 @@ export default function Navbar() {
   const [isClient, setIsClient] = useState(false);
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState(null);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [isSearchFocused, setIsSearchFocused] = useState(false);
 
   // Requête pour récupérer les données de l'utilisateur
   const { data: userData } = useQuery(GET_ME, {
@@ -26,24 +24,23 @@ export default function Navbar() {
     onCompleted: (data) => {
       if (data?.me) {
         setUser(data.me);
-        // Mettre à jour le localStorage avec les données complètes
         localStorage.setItem('user', JSON.stringify(data.me));
       }
     }
   });
 
-  const { data: messagesData, refetch: refetchMessages } = useQuery(MY_MESSAGES, { 
+  const { data: messagesData } = useQuery(MY_MESSAGES, { 
     fetchPolicy: 'cache-and-network',
     skip: !isAuthenticated
   });
+  
   const [unreadCount, setUnreadCount] = useState(0);
 
   useEffect(() => {
     setIsClient(true);
     checkAuthStatus();
     
-    // Écouter les changements d'authentification
-    const handleAuthChange = (event) => {
+    const handleAuthChange = () => {
       checkAuthStatus();
     };
     
@@ -53,11 +50,7 @@ export default function Navbar() {
 
   useEffect(() => {
     const handleScroll = () => {
-      if (window.scrollY > 10) {
-        setIsScrolled(true);
-      } else {
-        setIsScrolled(false);
-      }
+      setIsScrolled(window.scrollY > 10);
     };
 
     window.addEventListener('scroll', handleScroll);
@@ -97,12 +90,10 @@ export default function Navbar() {
         setIsAuthenticated(false);
         setUser(null);
         
-        // Dispatcher un événement pour informer les autres composants
         window.dispatchEvent(new CustomEvent('authChanged', { 
           detail: { isAuthenticated: false, user: null } 
         }));
         
-        // Redirection avec rechargement complet
         window.location.href = '/';
         resolve();
       }, 1000);
@@ -110,7 +101,7 @@ export default function Navbar() {
 
     toast.promise(promise, {
       loading: 'Déconnexion en cours...',
-      success: 'Déconnexion réussie !',
+      success: 'À bientôt !',
       error: 'Erreur lors de la déconnexion'
     });
   };
@@ -121,20 +112,30 @@ export default function Navbar() {
     }
   };
 
-  const handleSearch = (e) => {
-    e.preventDefault();
-    if (searchQuery.trim()) {
-      // Rediriger vers la page de recherche avec la query
-      window.location.href = `/search?q=${encodeURIComponent(searchQuery.trim())}`;
-    }
+  // Fermer le menu mobile quand on clique sur un lien
+  const closeMobileMenu = () => {
+    setIsOpen(false);
   };
 
   return (
     <>
-      <Toaster position="top-right" />
+      <Toaster 
+        position="top-right"
+        toastOptions={{
+          duration: 3000,
+          style: {
+            background: '#f9fafb',
+            color: '#374151',
+            borderRadius: '12px',
+            border: '1px solid #e5e7eb',
+            boxShadow: '0 10px 25px -5px rgba(0, 0, 0, 0.1), 0 10px 10px -5px rgba(0, 0, 0, 0.04)',
+          },
+        }}
+      />
+      
       <nav className={`fixed w-full z-50 transition-all duration-300 ${
         isScrolled 
-          ? 'bg-white/95 backdrop-blur-sm shadow-lg border-b border-gray-100' 
+          ? 'bg-white/95 backdrop-blur-md shadow-lg border-b border-gray-100' 
           : 'bg-white/90 backdrop-blur-sm'
       }`}>
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
@@ -143,133 +144,128 @@ export default function Navbar() {
             {/* Logo */}
             <div className="flex items-center">
               <Link href="/" className="flex-shrink-0 flex items-center group">
-                <span className="text-2xl font-bold bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent group-hover:from-green-700 group-hover:to-emerald-700 transition-all duration-200">
-                  GreenTech
-                </span>
+                <div className="relative">
+                  <span className="text-2xl font-bold bg-gradient-to-r from-green-600 via-emerald-600 to-teal-600 bg-clip-text text-transparent group-hover:from-green-700 group-hover:via-emerald-700 group-hover:to-teal-700 transition-all duration-300">
+                    GreenTech
+                  </span>
+                  <div className="absolute -bottom-1 left-0 w-0 h-0.5 bg-gradient-to-r from-green-600 to-emerald-600 group-hover:w-full transition-all duration-300"></div>
+                </div>
               </Link>
             </div>
 
-            {/* Barre de recherche centrale - Desktop */}
-            <div className="hidden md:flex flex-1 max-w-lg mx-8">
-              <form onSubmit={handleSearch} className="relative w-full">
-                <div className={`relative transition-all duration-200 ${
-                  isSearchFocused ? 'transform scale-105' : ''
-                }`}>
-                  <input
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    onFocus={() => setIsSearchFocused(true)}
-                    onBlur={() => setIsSearchFocused(false)}
-                    placeholder="Rechercher des produits écologiques..."
-                    className="w-full pl-12 pr-4 py-3 border border-gray-200 rounded-full bg-gray-50 focus:bg-white focus:border-green-500 focus:ring-2 focus:ring-green-500/20 focus:outline-none transition-all duration-200 text-gray-700 placeholder-gray-400"
-                  />
-                  <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 h-5 w-5 text-gray-400" />
-                  {searchQuery && (
-                    <button
-                      type="submit"
-                      className="absolute right-3 top-1/2 transform -translate-y-1/2 bg-green-600 hover:bg-green-700 text-white p-1.5 rounded-full transition-colors duration-200"
-                    >
-                      <Search className="h-4 w-4" />
-                    </button>
-                  )}
-                </div>
-              </form>
-            </div>
-
             {/* Navigation desktop */}
-            <div className="hidden md:flex md:items-center md:space-x-1">
+            <div className="hidden md:flex md:items-center md:space-x-2">
               <NavLink href="/listings">Annonces</NavLink>
               <NavLink href="/categories">Catégories</NavLink>
               <NavLink href="/about">À propos</NavLink>
               <NavLink href="/contact">Contact</NavLink>
 
               {!isClient ? (
-                <div className="flex items-center space-x-3 ml-4">
-                  <div className="animate-pulse h-8 w-8 bg-gray-200 rounded-full"></div>
+                <div className="flex items-center space-x-3 ml-6">
+                  <div className="animate-pulse flex space-x-2">
+                    <div className="h-8 w-8 bg-gray-200 rounded-full"></div>
+                    <div className="h-8 w-16 bg-gray-200 rounded-lg"></div>
+                  </div>
                 </div>
               ) : isAuthenticated ? (
-                <div className="flex items-center space-x-3 ml-4">
-                  {/* Notifications/Messages */}
+                <div className="flex items-center space-x-3 ml-6">
+
+                  {/* Messages avec badge */}
                   <Link
                     href="/messages"
-                    className="relative p-2 text-gray-600 hover:text-green-600 hover:bg-green-50 rounded-full transition-all duration-200"
+                    className="relative p-2.5 text-gray-600 hover:text-green-600 hover:bg-green-50 rounded-xl transition-all duration-200 group"
                   >
-                    <MessageCircle className="h-5 w-5" />
+                    <MessageCircle className="h-5 w-5 group-hover:scale-110 transition-transform duration-200" />
                     {unreadCount > 0 && (
-                      <span className="absolute -top-1 -right-1 h-4 w-4 bg-red-500 text-white text-xs flex items-center justify-center rounded-full font-bold">
+                      <span className="absolute -top-1 -right-1 h-5 w-5 bg-red-500 text-white text-xs flex items-center justify-center rounded-full font-bold animate-pulse">
                         {unreadCount > 9 ? '9+' : unreadCount}
                       </span>
                     )}
                   </Link>
 
-                  {/* Favoris */}
-                  {/* <Link
-                    href="/favorites"
-                    className="p-2 text-gray-600 hover:text-green-600 hover:bg-green-50 rounded-full transition-all duration-200"
-                  >
-                    <Heart className="h-5 w-5" />
-                  </Link> */}
-
                   {/* Menu utilisateur */}
                   <HeadlessMenu as="div" className="relative">
-                    <HeadlessMenu.Button className="flex items-center space-x-2 p-2 text-gray-700 hover:text-green-600 hover:bg-green-50 rounded-full transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-green-500/20">
+                    <HeadlessMenu.Button className="flex items-center space-x-2 p-2 text-gray-700 hover:text-green-600 hover:bg-green-50 rounded-xl transition-all duration-200 focus:outline-none focus:ring-2 focus:ring-green-500/20 group">
                       {user?.profilePicture ? (
                         <Image
                           src={getProfilePictureUrl(user.profilePicture)}
                           alt={user.username || 'Profil'}
                           width={32}
                           height={32}
-                          className="w-8 h-8 rounded-full object-cover"
+                          className="w-8 h-8 rounded-full object-cover ring-2 ring-green-100 group-hover:ring-green-200 transition-all duration-200"
                         />
                       ) : (
-                        <div className="w-8 h-8 bg-gradient-to-r from-green-500 to-emerald-500 rounded-full flex items-center justify-center">
-                          <span className="text-white text-sm font-medium">
+                        <div className="w-8 h-8 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center ring-2 ring-green-100 group-hover:ring-green-200 transition-all duration-200">
+                          <span className="text-white text-sm font-bold">
                             {user?.username?.charAt(0).toUpperCase() || 'U'}
                           </span>
                         </div>
                       )}
-                      <ChevronDown className="h-4 w-4" />
+                      <ChevronDown className="h-4 w-4 group-hover:rotate-180 transition-transform duration-200" />
                     </HeadlessMenu.Button>
+                    
                     <Transition
-                      enter="transition ease-out duration-100"
-                      enterFrom="transform opacity-0 scale-95"
-                      enterTo="transform opacity-100 scale-100"
-                      leave="transition ease-in duration-75"
-                      leaveFrom="transform opacity-100 scale-100"
-                      leaveTo="transform opacity-0 scale-95"
+                      enter="transition ease-out duration-200"
+                      enterFrom="transform opacity-0 scale-95 translate-y-[-10px]"
+                      enterTo="transform opacity-100 scale-100 translate-y-0"
+                      leave="transition ease-in duration-150"
+                      leaveFrom="transform opacity-100 scale-100 translate-y-0"
+                      leaveTo="transform opacity-0 scale-95 translate-y-[-10px]"
                     >
-                      <HeadlessMenu.Items className="absolute right-0 mt-2 w-56 rounded-xl shadow-lg bg-white ring-1 ring-black ring-opacity-5 focus:outline-none border border-gray-100">
+                      <HeadlessMenu.Items className="absolute right-0 mt-3 w-64 rounded-2xl shadow-xl bg-white ring-1 ring-black ring-opacity-5 focus:outline-none border border-gray-100 overflow-hidden">
                         <div className="py-2">
-                          <div className="px-4 py-3 border-b border-gray-100">
-                            <p className="text-sm font-medium text-gray-900">{user?.username}</p>
-                            <p className="text-sm text-gray-500">{user?.email}</p>
+                          {/* En-tête du profil */}
+                          <div className="px-4 py-4 bg-gradient-to-r from-green-50 to-emerald-50 border-b border-gray-100">
+                            <div className="flex items-center space-x-3">
+                              {user?.profilePicture ? (
+                                <Image
+                                  src={getProfilePictureUrl(user.profilePicture)}
+                                  alt={user.username}
+                                  width={40}
+                                  height={40}
+                                  className="w-10 h-10 rounded-full object-cover"
+                                />
+                              ) : (
+                                <div className="w-10 h-10 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center">
+                                  <span className="text-white font-bold">
+                                    {user?.username?.charAt(0).toUpperCase()}
+                                  </span>
+                                </div>
+                              )}
+                              <div>
+                                <p className="text-sm font-semibold text-gray-900">{user?.username}</p>
+                                <p className="text-xs text-gray-600">{user?.email}</p>
+                              </div>
+                            </div>
                           </div>
-                          <MenuItemWithIcon href="/dashboard" icon={User}>
-                            Mon tableau de bord
-                          </MenuItemWithIcon>
-                          {user?.isStaff && (
-                            <MenuItemWithIcon href="/admin" icon={BarChart2}>
-                              Tableau de bord admin
+                          
+                          {/* Menu items */}
+                          <div className="py-1">
+                            <MenuItemWithIcon href="/dashboard" icon={User}>
+                              Mon tableau de bord
                             </MenuItemWithIcon>
-                          )}
-                          <MenuItemWithIcon href="/messages" icon={MessageCircle}>
-                            Messages
-                          </MenuItemWithIcon>
-                          {/* <MenuItemWithIcon href="/favorites" icon={Heart}>
-                            Mes favoris
-                          </MenuItemWithIcon> */}
+                            {user?.isStaff && (
+                              <MenuItemWithIcon href="/admin" icon={BarChart2}>
+                                Administration
+                              </MenuItemWithIcon>
+                            )}
+                            <MenuItemWithIcon href="/messages" icon={MessageCircle} badge={unreadCount}>
+                              Messages
+                            </MenuItemWithIcon>
+                          </div>
+                          
                           <div className="border-t border-gray-100 my-1"></div>
+                          
                           <HeadlessMenu.Item>
                             {({ active }) => (
                               <button
                                 onClick={confirmLogout}
                                 className={`${
                                   active ? 'bg-red-50 text-red-700' : 'text-red-600'
-                                } flex items-center space-x-3 w-full text-left px-4 py-2 text-sm transition-colors duration-150`}
+                                } flex items-center space-x-3 w-full text-left px-4 py-3 text-sm transition-all duration-200 hover:bg-red-50 group`}
                               >
-                                <LogOut className="h-4 w-4" />
-                                <span>Déconnexion</span>
+                                <LogOut className="h-4 w-4 group-hover:scale-110 transition-transform duration-200" />
+                                <span className="font-medium">Déconnexion</span>
                               </button>
                             )}
                           </HeadlessMenu.Item>
@@ -279,16 +275,16 @@ export default function Navbar() {
                   </HeadlessMenu>
                 </div>
               ) : (
-                <div className="flex items-center space-x-3 ml-4">
+                <div className="flex items-center space-x-3 ml-6">
                   <Link
                     href="/auth/login"
-                    className="px-4 py-2 text-gray-700 hover:text-green-600 hover:bg-green-50 rounded-lg transition-all duration-200"
+                    className="px-4 py-2 text-gray-700 hover:text-green-600 hover:bg-green-50 rounded-lg transition-all duration-200 font-medium"
                   >
                     Connexion
                   </Link>
                   <Link
                     href="/auth/register"
-                    className="px-6 py-2 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-lg hover:from-green-700 hover:to-emerald-700 transition-all duration-200 transform hover:scale-105 shadow-md hover:shadow-lg"
+                    className="px-6 py-2.5 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-lg hover:from-green-700 hover:to-emerald-700 transition-all duration-200 transform hover:scale-105 shadow-md hover:shadow-lg font-medium"
                   >
                     Inscription
                   </Link>
@@ -300,7 +296,7 @@ export default function Navbar() {
             <div className="md:hidden flex items-center">
               <button
                 onClick={() => setIsOpen(!isOpen)}
-                className="p-2 text-gray-700 hover:text-green-600 hover:bg-green-50 rounded-lg transition-all duration-200"
+                className="p-2 text-gray-700 hover:text-green-600 hover:bg-green-50 rounded-xl transition-all duration-200"
               >
                 {isOpen ? (
                   <X className="h-6 w-6" />
@@ -310,38 +306,32 @@ export default function Navbar() {
               </button>
             </div>
           </div>
-
-          {/* Barre de recherche mobile */}
-          <div className="md:hidden pb-3">
-            <form onSubmit={handleSearch} className="relative">
-              <input
-                type="text"
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
-                placeholder="Rechercher..."
-                className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-lg bg-gray-50 focus:bg-white focus:border-green-500 focus:ring-2 focus:ring-green-500/20 focus:outline-none transition-all duration-200"
-              />
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-gray-400" />
-            </form>
-          </div>
         </div>
 
         {/* Menu mobile */}
         <Transition
           show={isOpen}
-          enter="transition ease-out duration-100"
-          enterFrom="transform opacity-0 scale-95"
-          enterTo="transform opacity-100 scale-100"
-          leave="transition ease-in duration-75"
-          leaveFrom="transform opacity-100 scale-100"
-          leaveTo="transform opacity-0 scale-95"
+          enter="transition ease-out duration-200"
+          enterFrom="transform opacity-0 scale-95 translate-y-[-10px]"
+          enterTo="transform opacity-100 scale-100 translate-y-0"
+          leave="transition ease-in duration-150"
+          leaveFrom="transform opacity-100 scale-100 translate-y-0"
+          leaveTo="transform opacity-0 scale-95 translate-y-[-10px]"
         >
           <div className="md:hidden">
-            <div className="px-2 pt-2 pb-3 space-y-1 sm:px-3 bg-white/95 backdrop-blur-sm border-t border-gray-100">
-              <MobileNavLink href="/listings">Annonces</MobileNavLink>
-              <MobileNavLink href="/categories">Catégories</MobileNavLink>
-              <MobileNavLink href="/about">À propos</MobileNavLink>
-              <MobileNavLink href="/contact">Contact</MobileNavLink>
+            <div className="px-4 pt-2 pb-4 space-y-2 bg-white/95 backdrop-blur-md border-t border-gray-100 shadow-lg">
+              <MobileNavLink href="/listings" onClick={closeMobileMenu}>
+                Annonces
+              </MobileNavLink>
+              <MobileNavLink href="/categories" onClick={closeMobileMenu}>
+                Catégories
+              </MobileNavLink>
+              <MobileNavLink href="/about" onClick={closeMobileMenu}>
+                À propos
+              </MobileNavLink>
+              <MobileNavLink href="/contact" onClick={closeMobileMenu}>
+                Contact
+              </MobileNavLink>
 
               {!isClient ? (
                 <div className="px-3 py-2">
@@ -349,27 +339,52 @@ export default function Navbar() {
                 </div>
               ) : isAuthenticated ? (
                 <>
-                  <div className="border-t border-gray-100 my-2 pt-2">
-                    <div className="px-3 py-2">
-                      <p className="text-sm font-medium text-gray-900">{user?.username}</p>
-                      <p className="text-xs text-gray-500">{user?.email}</p>
+                  <div className="border-t border-gray-200 my-3 pt-3">
+                    <div className="flex items-center space-x-3 px-3 py-2">
+                      {user?.profilePicture ? (
+                        <Image
+                          src={getProfilePictureUrl(user.profilePicture)}
+                          alt={user.username}
+                          width={32}
+                          height={32}
+                          className="w-8 h-8 rounded-full object-cover"
+                        />
+                      ) : (
+                        <div className="w-8 h-8 bg-gradient-to-br from-green-500 to-emerald-600 rounded-full flex items-center justify-center">
+                          <span className="text-white text-sm font-bold">
+                            {user?.username?.charAt(0).toUpperCase()}
+                          </span>
+                        </div>
+                      )}
+                      <div>
+                        <p className="text-sm font-semibold text-gray-900">{user?.username}</p>
+                        <p className="text-xs text-gray-500">{user?.email}</p>
+                      </div>
                     </div>
                   </div>
-                  <MobileNavLink href="/dashboard">Mon tableau de bord</MobileNavLink>
-                  <MobileNavLink href="/profile">Mon profil</MobileNavLink>
-                  <MobileNavLink href="/messages">Messages</MobileNavLink>
-                  {/* <MobileNavLink href="/favorites">Mes favoris</MobileNavLink> */}
+                  
+                  <MobileNavLink href="/dashboard" onClick={closeMobileMenu}>
+                    Mon tableau de bord
+                  </MobileNavLink>
+                  <MobileNavLink href="/messages" onClick={closeMobileMenu}>
+                    Messages {unreadCount > 0 && `(${unreadCount})`}
+                  </MobileNavLink>
+                  
                   <button
                     onClick={confirmLogout}
-                    className="block w-full text-left px-3 py-2 rounded-lg text-red-600 hover:text-red-700 hover:bg-red-50 transition-all duration-200"
+                    className="block w-full text-left px-3 py-2 rounded-xl text-red-600 hover:text-red-700 hover:bg-red-50 transition-all duration-200 font-medium"
                   >
                     Déconnexion
                   </button>
                 </>
               ) : (
                 <>
-                  <MobileNavLink href="/auth/login">Connexion</MobileNavLink>
-                  <MobileNavLink href="/auth/register">Inscription</MobileNavLink>
+                  <MobileNavLink href="/auth/login" onClick={closeMobileMenu}>
+                    Connexion
+                  </MobileNavLink>
+                  <MobileNavLink href="/auth/register" onClick={closeMobileMenu} className="bg-green-50 text-green-700 font-medium">
+                    Inscription
+                  </MobileNavLink>
                 </>
               )}
             </div>
@@ -385,19 +400,21 @@ function NavLink({ href, children }) {
   return (
     <Link
       href={href}
-      className="px-3 py-2 text-gray-700 hover:text-green-600 hover:bg-green-50 rounded-lg transition-all duration-200 whitespace-nowrap"
+      className="relative px-4 py-2 text-gray-700 hover:text-green-600 rounded-lg transition-all duration-200 whitespace-nowrap group font-medium"
     >
       {children}
+      <span className="absolute inset-x-0 bottom-0 h-0.5 bg-green-600 scale-x-0 group-hover:scale-x-100 transition-transform duration-200 origin-center"></span>
     </Link>
   );
 }
 
 // Composant MobileNavLink pour mobile
-function MobileNavLink({ href, children }) {
+function MobileNavLink({ href, children, onClick, className = "" }) {
   return (
     <Link
       href={href}
-      className="block px-3 py-2 rounded-lg text-gray-700 hover:text-green-600 hover:bg-green-50 transition-all duration-200"
+      onClick={onClick}
+      className={`block px-3 py-2.5 rounded-xl text-gray-700 hover:text-green-600 hover:bg-green-50 transition-all duration-200 ${className}`}
     >
       {children}
     </Link>
@@ -405,7 +422,7 @@ function MobileNavLink({ href, children }) {
 }
 
 // Composant MenuItemWithIcon pour le menu utilisateur
-function MenuItemWithIcon({ href, icon: Icon, children }) {
+function MenuItemWithIcon({ href, icon: Icon, children, badge }) {
   return (
     <HeadlessMenu.Item>
       {({ active }) => (
@@ -413,10 +430,17 @@ function MenuItemWithIcon({ href, icon: Icon, children }) {
           href={href}
           className={`${
             active ? 'bg-green-50 text-green-700' : 'text-gray-700'
-          } flex items-center space-x-3 px-4 py-2 text-sm transition-colors duration-150`}
+          } flex items-center justify-between px-4 py-3 text-sm transition-all duration-200 hover:bg-green-50 group`}
         >
-          <Icon className="h-4 w-4" />
-          <span>{children}</span>
+          <div className="flex items-center space-x-3">
+            <Icon className="h-4 w-4 group-hover:scale-110 transition-transform duration-200" />
+            <span className="font-medium">{children}</span>
+          </div>
+          {badge > 0 && (
+            <span className="ml-2 px-2 py-0.5 bg-red-500 text-white text-xs rounded-full font-bold">
+              {badge > 9 ? '9+' : badge}
+            </span>
+          )}
         </Link>
       )}
     </HeadlessMenu.Item>
