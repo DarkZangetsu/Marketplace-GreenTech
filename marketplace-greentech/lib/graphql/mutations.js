@@ -325,10 +325,8 @@ export const DELETE_LISTING_ADMIN = gql`
 `;
 
 export const CREATE_CATEGORY = gql`
-  mutation CreateCategory($input: CategoryInput!) {
+  mutation createCategory($input: CategoryInput!) {
     createCategory(input: $input) {
-      success
-      message
       category {
         id
         name
@@ -341,8 +339,6 @@ export const CREATE_CATEGORY = gql`
 export const UPDATE_CATEGORY = gql`
   mutation UpdateCategory($id: ID!, $input: CategoryInput!) {
     updateCategory(id: $id, input: $input) {
-      success
-      message
       category {
         id
         name
@@ -356,7 +352,6 @@ export const DELETE_CATEGORY = gql`
   mutation DeleteCategory($id: ID!) {
     deleteCategory(id: $id) {
       success
-      message
     }
   }
 `;

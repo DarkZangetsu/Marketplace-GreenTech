@@ -46,7 +46,7 @@ export default function ListingDetailPage({ params }) {
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [showContactForm, setShowContactForm] = useState(false);
   const [message, setMessage] = useState('');
-  const [isFavorite, setIsFavorite] = useState(false);
+  // const [isFavorite, setIsFavorite] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
@@ -109,10 +109,10 @@ export default function ListingDetailPage({ params }) {
     }
   };
 
-  const toggleFavorite = () => {
-    setIsFavorite(!isFavorite);
-    // In a real app, we would update the favorite status in the database
-  };
+  // const toggleFavorite = () => {
+  //   setIsFavorite(!isFavorite);
+  //   // In a real app, we would update the favorite status in the database
+  // };
 
   const formatPrice = (price) => {
     if (price === 0 || listing.isFree) return 'Gratuit';
@@ -447,7 +447,7 @@ export default function ListingDetailPage({ params }) {
                 <h2 className="text-lg font-semibold text-gray-900 mb-4">Actions</h2>
 
                 <div className="space-y-3">
-                  <button
+                  {/* <button
                     onClick={toggleFavorite}
                     className={`w-full flex items-center justify-center px-4 py-2 rounded-md ${isFavorite
                         ? 'bg-red-50 text-red-600 border border-red-200'
@@ -456,7 +456,7 @@ export default function ListingDetailPage({ params }) {
                   >
                     <Heart size={18} className={`mr-2 ${isFavorite ? 'fill-current' : ''}`} />
                     <span>{isFavorite ? 'Retirer des favoris' : 'Ajouter aux favoris'}</span>
-                  </button>
+                  </button> */}
 
                   <button className="w-full flex items-center justify-center px-4 py-2 bg-gray-50 text-gray-700 border border-gray-200 rounded-md hover:bg-gray-100">
                     <Share2 size={18} className="mr-2" />

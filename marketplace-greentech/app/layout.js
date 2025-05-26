@@ -19,7 +19,7 @@ function ConditionalLayout({ children }) {
   useEffect(() => {
     let timeout;
     setLoading(true);
-    timeout = setTimeout(() => setLoading(false), 2000); // 2 secondes
+    timeout = setTimeout(() => setLoading(false), 1000); 
     return () => clearTimeout(timeout);
   }, [pathname]);
 
