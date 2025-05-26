@@ -26,9 +26,11 @@ export default function RegisterPage() {
   const [registerUser] = useMutation(REGISTER_USER, {
     onCompleted: (data) => {
       if (data.register.success) {
-        localStorage.setItem('token', data.register.token);
-        toast.success('Inscription réussie ! Bienvenue sur GreenTech !');
-        router.push('/dashboard');
+        toast.success('Inscription réussie ! Vous pouvez maintenant vous connecter.');
+        // Redirection vers la page de connexion au lieu du dashboard
+        setTimeout(() => {
+          router.push('/auth/login');
+        }, 1500); // Délai pour permettre à l'utilisateur de voir le message de succès
       } else {
         setError(data.register.message);
         toast.error(data.register.message);

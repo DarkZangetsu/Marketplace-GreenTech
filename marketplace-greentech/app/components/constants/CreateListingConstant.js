@@ -9,11 +9,11 @@ export const conditions = [
 
 // Locations
 export const locations = [
-  { id: 'antananarivo', name: 'Antananarivo' },
-  { id: 'tamatave', name: 'Tamatave' },
-  { id: 'mahajanga', name: 'Mahajanga' },
-  { id: 'fianarantsoa', name: 'Fianarantsoa' },
-  { id: 'toliara', name: 'Toliara' },
-  { id: 'antsiranana', name: 'Antsiranana' },
-  { id: 'autre', name: 'Autre ville' },
+  { id: 'Antananarivo', name: 'Antananarivo' },
+  { id: 'Tamatave', name: 'Tamatave' },
+  { id: 'Mahajanga', name: 'Mahajanga' },
+  { id: 'Fianarantsoa', name: 'Fianarantsoa' },
+  { id: 'Toliara', name: 'Toliara' },
+  { id: 'Antsiranana', name: 'Antsiranana' },
+  { id: 'Autre', name: 'Autre ville' },
 ];

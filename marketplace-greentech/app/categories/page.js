@@ -4,22 +4,65 @@ import { useState } from 'react';
 import { useQuery } from '@apollo/client';
 import { GET_CATEGORIES } from '@/lib/graphql/queries';
 import Link from 'next/link';
-import { Search, Filter, Grid, List, Hammer, Trees, Zap, Droplet, Scissors, Wrench, PaintBucket, Plus } from 'lucide-react';
-
+import { 
+  Search, Filter, Grid, List, 
+  // Matériaux de construction
+  TreePine, Building, Hammer, Zap, 
+  // Outils
+  Wrench, Cpu, HardHat, Shield,
+  // Artisanat
+  Scissors, Gem, Palette, Mountain,
+  // Mobilier
+  Armchair, Package, Sofa,
+  // Recyclage
+  Recycle, FileText, Layers, Smartphone,
+  // Autres icônes
+  Home, Droplets, Paintbrush, DoorOpen, 
+  Settings, Drill, Factory, ShoppingBag
+} from 'lucide-react';
 
 const categoryIcons = {
-  construction: Hammer,
-  bois: Trees,
-  electricite: Zap,
-  plomberie: Droplet,
-  textile: Scissors,
-  metal: Wrench,
-  peinture: PaintBucket,
-  autres: Plus
+  // Matériaux de construction
+  'bois': TreePine,
+  'ciment-beton': Building,
+  'briques-blocs': Building,
+  'metaux': Wrench,
+  'toiture': Home,
+  'plomberie': Droplets,
+  'electricite': Zap,
+  'peinture-revetements': Paintbrush,
+  'fenetres-portes': DoorOpen,
+  'verre': Mountain,
+  
+  // Outils
+  'outils-manuels': Hammer,
+  'outils-electriques': Drill,
+  'outils-info-electronique': Cpu,
+  'equipement-chantier': HardHat,
+  'protection': Shield,
+  
+  // Artisanat
+  'tissus-textiles': Scissors,
+  'perles-accessoires': Gem,
+  'bois-artisanat': TreePine,
+  'argile-terre': Mountain,
+  'peintures-encres': Palette,
+  
+  // Mobilier
+  'meubles-bois': Armchair,
+  'mobilier-metal': Factory,
+  'decoration': Sofa,
+  'materiaux-reutilisables': Package,
+  
+  // Recyclage
+  'plastique': Recycle,
+  'carton-papier': FileText,
+  'composites': Layers,
+  'deee': Smartphone
 };
 
 const categoryColors = {
-  default: { bg: 'bg-green-50', text: 'text-green-600', border: 'border-white' }
+  default: { bg: 'bg-gray-50', text: 'text-gray-600', border: 'border-white' }
 };
 
 export default function CategoriesPage() {
@@ -66,7 +109,7 @@ export default function CategoriesPage() {
     return (
       <div className="min-h-screen pt-20 pb-12 flex flex-col bg-gray-50">
         <div className="flex-grow flex items-center justify-center">
-          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600"></div>
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-gray-600"></div>
         </div>
       </div>
     );
@@ -86,7 +129,7 @@ export default function CategoriesPage() {
     <div className="container mx-auto px-4 py-8 bg-gray-50">
       <div className="flex flex-col gap-6">
         {/* Header */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-lg shadow-sm border border-green-100">
+        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 bg-white p-6 rounded-lg shadow-sm border border-white">
           <div>
             <h1 className="text-3xl font-bold text-gray-900">Catégories</h1>
             <p className="text-gray-600 mt-1">
@@ -101,7 +144,7 @@ export default function CategoriesPage() {
                 type="text"
                 name="search"
                 placeholder="Rechercher une catégorie..."
-                className="w-full pl-10 pr-4 py-2 border border-green-200 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent"
                 value={filters.search}
                 onChange={handleFilterChange}
               />
@@ -110,7 +153,7 @@ export default function CategoriesPage() {
             
             {/* Filter button (mobile) */}
             <button
-              className="md:hidden flex items-center justify-center gap-2 w-full py-2 border border-green-200 rounded-md hover:bg-green-50 text-green-700"
+              className="md:hidden flex items-center justify-center gap-2 w-full py-2 border border-gray-200 rounded-md hover:bg-gray-50 text-gray-700"
               onClick={() => setShowFilters(!showFilters)}
             >
               <Filter size={18} />
@@ -141,11 +184,11 @@ export default function CategoriesPage() {
         <div className="flex flex-col md:flex-row gap-6">
           {/* Sidebar filters */}
           <div className={`md:w-64 md:block ${showFilters ? 'block' : 'hidden'}`}>
-            <div className="bg-white p-5 border border-green-200 rounded-lg shadow-sm">
+            <div className="bg-white p-5 border border-white rounded-lg shadow-sm">
               <div className="flex justify-between items-center mb-4">
                 <h2 className="text-lg font-semibold text-gray-800">Filtres</h2>
                 <button 
-                  className="text-green-600 hover:text-green-800 text-sm font-medium"
+                  className="text-gray-600 hover:text-gray-800 text-sm font-medium"
                   onClick={resetFilters}
                 >
                   Réinitialiser
@@ -159,7 +202,7 @@ export default function CategoriesPage() {
                   <h3 className="text-sm font-medium text-gray-700 mb-2">Trier par</h3>
                   <select
                     name="sortBy"
-                    className="w-full border border-green-200 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                    className="w-full border border-gray-200 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-gray-500 focus:border-transparent"
                     value={filters.sortBy}
                     onChange={handleFilterChange}
                   >
@@ -174,16 +217,16 @@ export default function CategoriesPage() {
           {/* Categories content */}
           <div className="flex-1">
             {filteredAndSortedCategories.length === 0 ? (
-              <div className="flex flex-col items-center justify-center bg-white border border-green-200 rounded-lg p-8 text-center shadow-sm">
-                <div className="bg-green-50 p-4 rounded-full mb-4">
-                  <Search className="h-8 w-8 text-green-500" />
+              <div className="flex flex-col items-center justify-center bg-white border border-white rounded-lg p-8 text-center shadow-sm">
+                <div className="bg-gray-50 p-4 rounded-full mb-4">
+                  <Search className="h-8 w-8 text-gray-500" />
                 </div>
                 <h3 className="text-lg font-medium text-gray-900 mb-2">Aucune catégorie trouvée</h3>
                 <p className="text-gray-600 max-w-md">
                   Essayez de modifier votre recherche pour trouver ce que vous cherchez.
                 </p>
                 <button
-                  className="mt-4 text-green-600 hover:text-green-800 font-medium"
+                  className="mt-4 text-gray-600 hover:text-gray-800 font-medium"
                   onClick={resetFilters}
                 >
                   Réinitialiser les filtres
@@ -195,14 +238,14 @@ export default function CategoriesPage() {
                   /* Grid view */
                   <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
                     {filteredAndSortedCategories.map(category => {
-                      const Icon = categoryIcons[category.slug] || Plus;
+                      const Icon = categoryIcons[category.slug] || ShoppingBag;
                       const colors = categoryColors.default;
                       
                       return (
                         <Link 
                           key={category.id} 
                           href={`/listings?category=${category.slug}`}
-                          className={`block bg-white rounded-lg border ${colors.border} hover:shadow-md transition-all duration-200 hover:border-green-300 p-6`}
+                          className={`block bg-white rounded-lg border ${colors.border} hover:shadow-md transition-all duration-200 hover:border-gray-300 p-6`}
                         >
                           <div className="flex flex-col h-full">
                             <div className="flex items-start justify-between mb-4">
@@ -214,7 +257,7 @@ export default function CategoriesPage() {
                             <h2 className="text-xl font-semibold text-gray-900 mb-2">{category.name}</h2>
                             
                             <div className="mt-auto pt-4 border-t border-gray-100">
-                              <div className="text-green-600 font-medium text-sm flex justify-between items-center">
+                              <div className="text-gray-600 font-medium text-sm flex justify-between items-center">
                                 <span>Voir les annonces</span>
                                 <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7"></path>
@@ -230,14 +273,14 @@ export default function CategoriesPage() {
                   /* List view */
                   <div className="space-y-4">
                     {filteredAndSortedCategories.map(category => {
-                      const Icon = categoryIcons[category.slug] || Plus;
+                      const Icon = categoryIcons[category.slug] || ShoppingBag;
                       const colors = categoryColors.default;
                       
                       return (
                         <Link 
                           key={category.id} 
                           href={`/listings?category=${category.slug}`}
-                          className={`block bg-white rounded-lg border ${colors.border} hover:shadow-md transition-all duration-200 hover:border-green-300 p-6`}
+                          className={`block bg-white rounded-lg border ${colors.border} hover:shadow-md transition-all duration-200 hover:border-gray-300 p-6`}
                         >
                           <div className="flex items-center gap-4">
                             <div className={`${colors.bg} p-3 rounded-lg`}>
@@ -246,7 +289,7 @@ export default function CategoriesPage() {
                             <div className="flex-grow">
                               <h2 className="text-xl font-semibold text-gray-900">{category.name}</h2>
                             </div>
-                            <div className="text-green-600 font-medium text-sm flex items-center gap-2">
+                            <div className="text-gray-600 font-medium text-sm flex items-center gap-2">
                               <span>Voir les annonces</span>
                               <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 5l7 7-7 7"></path>
