@@ -1,7 +1,7 @@
 /* eslint-disable react/no-unescaped-entities */
 'use client';
 
-import { useState, useMemo, useRef, useEffect, useCallback } from 'react';
+import { useState, useMemo, useRef, useEffect } from 'react';
 import { useQuery } from '@apollo/client';
 import { GET_LISTINGS, GET_CATEGORIES } from '@/lib/graphql/queries';
 import Link from 'next/link';
@@ -39,42 +39,32 @@ export default function ListingsPage() {
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 12;
 
-  // Debounced filters pour la recherche et les champs texte seulement
-  const debouncedSearch = useDebouncedValue(filters.search, 800);
-  const debouncedLocation = useDebouncedValue(filters.location, 800);
-  const debouncedMinPrice = useDebouncedValue(filters.minPrice, 1000);
-  const debouncedMaxPrice = useDebouncedValue(filters.maxPrice, 1000);
-
-  // Créer les variables pour Apollo en combinant les valeurs debounced et non-debounced
-  const apolloVariables = useMemo(() => ({
-    search: debouncedSearch || undefined,
-    categoryId: filters.categoryId || undefined,
-    condition: filters.condition || undefined,
-    minPrice: debouncedMinPrice ? parseFloat(debouncedMinPrice) : undefined,
-    maxPrice: debouncedMaxPrice ? parseFloat(debouncedMaxPrice) : undefined,
-    location: debouncedLocation || undefined,
-    status: filters.status
-  }), [debouncedSearch, debouncedLocation, debouncedMinPrice, debouncedMaxPrice, filters.categoryId, filters.condition, filters.status]);
+  // Debounced filters for Apollo query
+  const debouncedFilters = useDebouncedValue(filters, 500);
 
   const { data: categoriesData } = useQuery(GET_CATEGORIES);
   const { data: listingsData, loading, error } = useQuery(GET_LISTINGS, {
-    variables: apolloVariables
+    variables: {
+      search: debouncedFilters.search || undefined,
+      categoryId: debouncedFilters.categoryId || undefined,
+      condition: debouncedFilters.condition || undefined,
+      minPrice: debouncedFilters.minPrice ? parseFloat(debouncedFilters.minPrice) : undefined,
+      maxPrice: debouncedFilters.maxPrice ? parseFloat(debouncedFilters.maxPrice) : undefined,
+      location: debouncedFilters.location || undefined,
+      status: debouncedFilters.status
+    }
   });
 
-  // Utiliser useCallback pour éviter les re-créations inutiles de la fonction
-  const handleFilterChange = useCallback((e) => {
+  const handleFilterChange = (e) => {
     const { name, value } = e.target;
     setFilters(prev => ({
       ...prev,
       [name]: value
     }));
-    // Réinitialiser la page seulement pour certains filtres
-    if (name !== 'sortBy') {
-      setCurrentPage(1);
-    }
-  }, []);
+    setCurrentPage(1);
+  };
 
-  const resetFilters = useCallback(() => {
+  const resetFilters = () => {
     setFilters({
       search: '',
       categoryId: '',
@@ -86,7 +76,7 @@ export default function ListingsPage() {
       sortBy: 'date-desc'
     });
     setCurrentPage(1);
-  }, []);
+  };
 
   const filteredAndSortedListings = useMemo(() => {
     if (!listingsData?.listings) return [];
@@ -117,97 +107,6 @@ export default function ListingsPage() {
 
   const totalPages = Math.ceil(filteredAndSortedListings.length / itemsPerPage);
   const hasMore = currentPage < totalPages;
-
-  // Mémoriser les composants d'input pour éviter les re-renders
-  const SearchInput = useMemo(() => (
-    <div className="relative w-full md:w-64">
-      <input
-        type="text"
-        name="search"
-        placeholder="Rechercher une annonce..."
-        className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
-        value={filters.search}
-        onChange={handleFilterChange}
-      />
-      <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
-    </div>
-  ), [filters.search, handleFilterChange]);
-
-  const CategorySelect = useMemo(() => (
-    <select
-      name="categoryId"
-      className="w-full border border-gray-200 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
-      value={filters.categoryId}
-      onChange={handleFilterChange}
-    >
-      <option value="">Toutes les catégories</option>
-      {categoriesData?.categories.map(category => (
-        <option key={category.id} value={category.id}>{category.name}</option>
-      ))}
-    </select>
-  ), [filters.categoryId, handleFilterChange, categoriesData?.categories]);
-
-  const ConditionSelect = useMemo(() => (
-    <select
-      name="condition"
-      className="w-full border border-gray-200 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
-      value={filters.condition}
-      onChange={handleFilterChange}
-    >
-      <option value="">Tous les états</option>
-      <option value="new">Neuf</option>
-      <option value="like_new">Comme neuf</option>
-      <option value="good">Bon état</option>
-      <option value="fair">État moyen</option>
-      <option value="poor">Mauvais état</option>
-    </select>
-  ), [filters.condition, handleFilterChange]);
-
-  const PriceInputs = useMemo(() => (
-    <div className="grid grid-cols-2 gap-2">
-      <input
-        type="number"
-        name="minPrice"
-        value={filters.minPrice}
-        onChange={handleFilterChange}
-        placeholder="Min"
-        className="w-full border border-gray-200 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
-      />
-      <input
-        type="number"
-        name="maxPrice"
-        value={filters.maxPrice}
-        onChange={handleFilterChange}
-        placeholder="Max"
-        className="w-full border border-gray-200 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
-      />
-    </div>
-  ), [filters.minPrice, filters.maxPrice, handleFilterChange]);
-
-  const LocationInput = useMemo(() => (
-    <input
-      type="text"
-      name="location"
-      value={filters.location}
-      onChange={handleFilterChange}
-      placeholder="Ville, région..."
-      className="w-full border border-gray-200 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
-    />
-  ), [filters.location, handleFilterChange]);
-
-  const SortSelect = useMemo(() => (
-    <select
-      name="sortBy"
-      className="w-full border border-gray-200 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
-      value={filters.sortBy}
-      onChange={handleFilterChange}
-    >
-      <option value="date-desc">Plus récentes</option>
-      <option value="date-asc">Plus anciennes</option>
-      <option value="price-asc">Prix croissant</option>
-      <option value="price-desc">Prix décroissant</option>
-    </select>
-  ), [filters.sortBy, handleFilterChange]);
 
   if (loading && !listingsData) {
     return (
@@ -243,7 +142,17 @@ export default function ListingsPage() {
           
           <div className="flex flex-col md:flex-row gap-4 w-full md:w-auto">
             {/* Search */}
-            {SearchInput}
+            <div className="relative w-full md:w-64">
+              <input
+                type="text"
+                name="search"
+                placeholder="Rechercher une annonce..."
+                className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                value={filters.search}
+                onChange={handleFilterChange}
+              />
+              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
+            </div>
             
             {/* Filter button (mobile) */}
             <button
@@ -294,31 +203,87 @@ export default function ListingsPage() {
                 {/* Category filter */}
                 <div>
                   <h3 className="text-sm font-medium text-gray-700 mb-2">Catégorie</h3>
-                  {CategorySelect}
+                  <select
+                    name="categoryId"
+                    className="w-full border border-gray-200 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                    value={filters.categoryId}
+                    onChange={handleFilterChange}
+                  >
+                    <option value="">Toutes les catégories</option>
+                    {categoriesData?.categories.map(category => (
+                      <option key={category.id} value={category.id}>{category.name}</option>
+                    ))}
+                  </select>
                 </div>
                 
                 {/* Condition filter */}
                 <div>
                   <h3 className="text-sm font-medium text-gray-700 mb-2">État</h3>
-                  {ConditionSelect}
+                  <select
+                    name="condition"
+                    className="w-full border border-gray-200 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                    value={filters.condition}
+                    onChange={handleFilterChange}
+                  >
+                    <option value="">Tous les états</option>
+                    <option value="new">Neuf</option>
+                    <option value="like_new">Comme neuf</option>
+                    <option value="good">Bon état</option>
+                    <option value="fair">État moyen</option>
+                    <option value="poor">Mauvais état</option>
+                  </select>
                 </div>
                 
                 {/* Price filter */}
                 <div>
                   <h3 className="text-sm font-medium text-gray-700 mb-2">Prix</h3>
-                  {PriceInputs}
+                  <div className="grid grid-cols-2 gap-2">
+                    <input
+                      type="number"
+                      name="minPrice"
+                      value={filters.minPrice}
+                      onChange={handleFilterChange}
+                      placeholder="Min"
+                      className="w-full border border-gray-200 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                    />
+                    <input
+                      type="number"
+                      name="maxPrice"
+                      value={filters.maxPrice}
+                      onChange={handleFilterChange}
+                      placeholder="Max"
+                      className="w-full border border-gray-200 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                    />
+                  </div>
                 </div>
                 
                 {/* Location filter */}
                 <div>
                   <h3 className="text-sm font-medium text-gray-700 mb-2">Localisation</h3>
-                  {LocationInput}
+                  <input
+                    type="text"
+                    name="location"
+                    value={filters.location}
+                    onChange={handleFilterChange}
+                    placeholder="Ville, région..."
+                    className="w-full border border-gray-200 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                  />
                 </div>
                 
                 {/* Sort filter */}
                 <div>
                   <h3 className="text-sm font-medium text-gray-700 mb-2">Trier par</h3>
-                  {SortSelect}
+                  <select
+                    name="sortBy"
+                    className="w-full border border-gray-200 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
+                    value={filters.sortBy}
+                    onChange={handleFilterChange}
+                  >
+                    <option value="date-desc">Plus récentes</option>
+                    <option value="date-asc">Plus anciennes</option>
+                    <option value="price-asc">Prix croissant</option>
+                    <option value="price-desc">Prix décroissant</option>
+                  </select>
                 </div>
               </div>
             </div>

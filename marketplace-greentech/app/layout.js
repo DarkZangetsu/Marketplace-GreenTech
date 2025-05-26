@@ -19,29 +19,29 @@ function ConditionalLayout({ children }) {
   useEffect(() => {
     let timeout;
     setLoading(true);
-    timeout = setTimeout(() => setLoading(false), 1000);
+    timeout = setTimeout(() => setLoading(false), 2000); // 2 secondes
     return () => clearTimeout(timeout);
   }, [pathname]);
 
   // Pages où on ne veut pas afficher navbar et footer
-  const othersPages = ['/auth/login', '/auth/register', '/dashboard/messages', '/admin'];
+  const othersPages = ['/auth/login', '/auth/register', '/dashboard/messages'];
   const isOthersPage = othersPages.includes(pathname);
 
   if (isOthersPage) {
     return (
-      <main className="min-h-screen">
+      <main className="min-h-screen" key="others-page">
         {loading && <LoadingOverlay />}
-        {children}
+        <div key={`content-${pathname}`}>{children}</div>
       </main>
     );
   }
 
   return (
-    <div className="flex flex-col min-h-screen">
+    <div className="flex flex-col min-h-screen" key="main-layout">
       {loading && <LoadingOverlay />}
       <Navbar />
       <main className="flex-grow pt-16">
-        {children}
+        <div key={`content-${pathname}`}>{children}</div>
       </main>
       <Footer />
     </div>

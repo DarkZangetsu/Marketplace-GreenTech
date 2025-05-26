@@ -581,12 +581,13 @@ export default function MessagesPage() {
 
   return (
     <div className="h-screen bg-gray-50 flex flex-col overflow-hidden">
-      <Navbar />
-
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 pt-20 px-4 py-3 flex-shrink-0">
+      <div className="bg-white border-b border-gray-200 px-4 py-3 flex-shrink-0">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
+            <Link href="/dashboard" className="text-gray-500 hover:text-green-600 mr-2">
+              <ArrowLeft size={24} />
+            </Link>
             <h1 className="text-xl font-semibold text-gray-900">Messages</h1>
             {unreadCount > 0 && (
               <span className="bg-green-500 text-white text-xs font-medium px-2 py-1 rounded-full">
@@ -783,7 +784,7 @@ export default function MessagesPage() {
                 className="flex-1 overflow-y-auto px-4 py-4"
                 style={{
                   scrollBehavior: 'smooth',
-                  maxHeight: 'calc(100vh - 200px)'
+                  maxHeight: 'calc(100vh - 180px)'
                 }}
               >
                 {conversationLoading ? (
@@ -877,7 +878,7 @@ export default function MessagesPage() {
                 )}
               </div>
 
-              {/* Zone de saisie */}
+              {/* Zone de saisie - Toujours visible si une conversation est active */}
               <div className="border-t border-gray-200 p-4 bg-white flex-shrink-0">
                 <form onSubmit={handleSendMessage} className="flex items-end space-x-3">
                   <div className="flex-1">

@@ -3,13 +3,13 @@
 
 import { useState, useEffect, useRef } from 'react';
 import Link from 'next/link';
-import { User, Package, MessageSquare, Heart, Settings, Edit3, Camera } from 'lucide-react';
+import { User, Package, MessageSquare, Heart, Settings, Edit3, Camera, List as ListIcon } from 'lucide-react';
 import { useMutation, useQuery } from '@apollo/client';
 import { UPDATE_USER_PROFILE, UPLOAD_PROFILE_PICTURE } from '@/lib/graphql/mutations';
 import { useRouter } from 'next/navigation';
 import { toast } from 'react-hot-toast';
 import Image from 'next/image';
-import { GET_ALL_LISTINGS, GET_LISTINGS_WITH_MESSAGES} from '@/lib/graphql/queries';
+import { GET_ALL_LISTINGS, GET_LISTINGS_WITH_MESSAGES, GET_CATEGORIES } from '@/lib/graphql/queries';
 
 // Fonction utilitaire pour l'URL de la photo de profil
 const getProfilePictureUrl = (url) => {
@@ -29,6 +29,7 @@ export default function DashboardPage() {
     location: '',
     phone: '',
   });
+  const [isClient, setIsClient] = useState(false);
 
   // GraphQL queries avec gestion d'erreur améliorée
   const { data: listingsData, loading: listingsLoading, error: listingsError } = useQuery(GET_ALL_LISTINGS, {
@@ -42,6 +43,8 @@ export default function DashboardPage() {
       console.error('Error fetching messages:', error);
     }
   });
+
+  const { data: categoriesData } = useQuery(GET_CATEGORIES);
 
   // Vérifier les erreurs d'authentification
   useEffect(() => {
@@ -84,6 +87,10 @@ export default function DashboardPage() {
         router.push('/auth/login');
       }
     }
+  }, [router]);
+
+  useEffect(() => {
+    setIsClient(true);
   }, [router]);
 
   // Mutation pour mettre à jour le profil
@@ -203,7 +210,24 @@ export default function DashboardPage() {
   // Favoris (à adapter selon votre structure de données)
   const favorites = user?.favorites || [];
 
-  if (!user) {
+  // Comptage des annonces par catégorie
+  const listingsByCategory = (categoriesData?.categories || []).map(cat => ({
+    name: cat.name,
+    count: userListings.filter(l => l.category?.id === cat.id).length
+  })).filter(cat => cat.count > 0);
+
+  // Historique d'activité sur les annonces (création, modif, suppression)
+  const listingActivities = userListings
+    .map(listing => ({
+      id: listing.id,
+      title: listing.title,
+      action: listing.updatedAt !== listing.createdAt ? 'modifié' : 'créé',
+      date: new Date(listing.updatedAt !== listing.createdAt ? listing.updatedAt : listing.createdAt),
+    }))
+    .sort((a, b) => b.date - a.date)
+    .slice(0, 3);
+
+  if (!isClient || !user) {
     return (
       <div className="container mx-auto px-4 py-8">
         <div className="animate-pulse">
@@ -392,7 +416,7 @@ export default function DashboardPage() {
           {/* Stats and Quick Actions */}
           <div className="lg:col-span-2 space-y-8">
             {/* Stats Cards */}
-            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-2 gap-4">
               <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-semibold text-gray-900">Annonces actives</h3>
@@ -405,7 +429,6 @@ export default function DashboardPage() {
                   Gérer mes annonces
                 </Link>
               </div>
-              
               <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
                 <div className="flex items-center justify-between mb-4">
                   <h3 className="text-lg font-semibold text-gray-900">Messages non lus</h3>
@@ -416,17 +439,6 @@ export default function DashboardPage() {
                 </p>
                 <Link href="/dashboard/messages" className="text-green-600 hover:text-green-800 text-sm font-medium mt-2 inline-block">
                   Voir mes messages
-                </Link>
-              </div>
-              
-              <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
-                <div className="flex items-center justify-between mb-4">
-                  <h3 className="text-lg font-semibold text-gray-900">Favoris</h3>
-                  <Heart className="text-red-600" size={24} />
-                </div>
-                <p className="text-3xl font-bold text-gray-900">{favorites.length}</p>
-                <Link href="/dashboard/favorites" className="text-green-600 hover:text-green-800 text-sm font-medium mt-2 inline-block">
-                  Voir mes favoris
                 </Link>
               </div>
             </div>
@@ -450,7 +462,6 @@ export default function DashboardPage() {
             {/* Recent Activity */}
             <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
               <h3 className="text-xl font-semibold text-gray-900 mb-6">Activité récente</h3>
-              
               {messagesError ? (
                 <div className="text-center py-6">
                   <p className="text-gray-500">Impossible de charger les messages</p>
@@ -463,19 +474,19 @@ export default function DashboardPage() {
                 </div>
               ) : (
                 <div className="space-y-4">
-                  {recentMessages.length > 0 ? (
-                    recentMessages.map((message) => (
-                      <div key={message.id} className="flex items-start gap-4 pb-4 border-b border-gray-100">
-                        <div className="bg-blue-100 p-2 rounded-full">
-                          <MessageSquare size={16} className="text-blue-600" />
+                  {/* Actions sur les annonces */}
+                  {listingActivities.length > 0 ? (
+                    listingActivities.map(act => (
+                      <div key={act.id} className="flex items-start gap-4 pb-4 border-b border-gray-100">
+                        <div className="bg-green-100 p-2 rounded-full">
+                          <Package size={16} className="text-green-600" />
                         </div>
                         <div>
                           <p className="text-gray-900">
-                            {message.isRead ? 'Message lu' : 'Nouveau message'}
-                            {message.sender?.id === currentUserId ? ' envoyé' : ' reçu'}
+                            Annonce <span className="font-semibold">{act.title}</span> {act.action}
                           </p>
                           <p className="text-gray-500 text-sm mt-1">
-                            {new Date(message.createdAt).toLocaleDateString()}
+                            {act.date.toLocaleDateString()}
                           </p>
                         </div>
                       </div>
@@ -485,12 +496,30 @@ export default function DashboardPage() {
                   )}
                 </div>
               )}
-              
               <div className="mt-6 text-center">
                 <Link href="/dashboard/activity" className="text-green-600 hover:text-green-800 text-sm font-medium">
                   Voir toute l'activité
                 </Link>
               </div>
+            </div>
+            {/* Annonces par catégorie (déplacé en bas) */}
+            <div className="bg-white p-6 rounded-lg shadow-sm border border-gray-200">
+              <div className="flex items-center justify-between mb-4">
+                <h3 className="text-lg font-semibold text-gray-900">Annonces par catégorie</h3>
+                <ListIcon className="text-orange-600" size={24} />
+              </div>
+              <ul className="text-gray-900 text-base space-y-1">
+                {listingsByCategory.length === 0 ? (
+                  <li className="text-gray-500 text-sm">Aucune annonce</li>
+                ) : (
+                  listingsByCategory.map(cat => (
+                    <li key={cat.name} className="flex justify-between">
+                      <span>{cat.name}</span>
+                      <span className="font-semibold">{cat.count}</span>
+                    </li>
+                  ))
+                )}
+              </ul>
             </div>
           </div>
         </div>
