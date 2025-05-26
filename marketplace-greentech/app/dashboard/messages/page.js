@@ -582,7 +582,7 @@ export default function MessagesPage() {
   return (
     <div className="h-screen bg-gray-50 flex flex-col overflow-hidden">
       {/* Header */}
-      <div className="bg-white border-b border-gray-200 px-4 py-3 flex-shrink-0">
+      <div className="bg-white border-b border-gray-200 px-4 py-3 flex-shrink-0 sticky top-0 z-10">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
             <Link href="/dashboard" className="text-gray-500 hover:text-green-600 mr-2">
@@ -603,7 +603,7 @@ export default function MessagesPage() {
           </div>
         </div>
       </div>
-
+  
       {/* Interface principale */}
       <div className="flex-1 flex overflow-hidden">
         {/* Liste des conversations */}
@@ -621,7 +621,7 @@ export default function MessagesPage() {
               />
             </div>
           </div>
-
+  
           {/* Liste scrollable des conversations */}
           <div className="flex-1 overflow-y-auto">
             {filteredConversations.length === 0 ? (
@@ -642,7 +642,7 @@ export default function MessagesPage() {
                   if (!conversation || !conversation.otherUser || !conversation.listing) {
                     return null;
                   }
-
+  
                   return (
                     <div
                       key={conversation.id}
@@ -673,7 +673,7 @@ export default function MessagesPage() {
                             />
                           </div>
                         </div>
-
+  
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between mb-1">
                             <h3 className="font-medium text-gray-900 truncate flex items-center">
@@ -686,20 +686,20 @@ export default function MessagesPage() {
                               {conversation.lastMessage && formatDate(conversation.lastMessage.createdAt)}
                             </span>
                           </div>
-
+  
                           {conversation.lastMessage && (
                             <p className="text-sm text-gray-600 truncate">
                               {conversation.lastMessage.sender?.id === currentUser?.id ? 'Vous: ' : ''}
                               {conversation.lastMessage.message}
                             </p>
                           )}
-
+  
                           <div className="mt-1 flex items-center">
                             <Package size={12} className="text-gray-400 mr-1 flex-shrink-0" />
                             <span className="text-xs text-gray-500 truncate">{conversation.listing.title}</span>
                           </div>
                         </div>
-
+  
                         {conversation.unreadCount > 0 && (
                           <div className="flex-shrink-0">
                             <span className="bg-green-500 text-white text-xs font-medium w-5 h-5 rounded-full flex items-center justify-center">
@@ -715,7 +715,7 @@ export default function MessagesPage() {
             )}
           </div>
         </div>
-
+  
         {/* Zone de conversation */}
         <div className={`${!showMobileList ? 'block' : 'hidden'} md:block flex-1 flex flex-col bg-white overflow-hidden`}>
           {activeConversation && activeConversation.otherUser && activeConversation.listing ? (
@@ -730,7 +730,7 @@ export default function MessagesPage() {
                     >
                       <ArrowLeft size={20} />
                     </button>
-
+  
                     <div className="relative">
                       <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center overflow-hidden">
                         {activeConversation.otherUser.profilePicture ? (
@@ -753,16 +753,21 @@ export default function MessagesPage() {
                         />
                       </div>
                     </div>
-
+  
                     <div>
                       <h3 className="font-medium text-gray-900">{getFullName(activeConversation.otherUser)}</h3>
-                      <div className="flex items-center text-xs text-gray-500">
-                        <div className={`w-2 h-2 rounded-full mr-2 ${onlineUsers && onlineUsers.has && onlineUsers.has(String(activeConversation.otherUser.id)) ? 'bg-green-500' : 'bg-gray-400'}`} />
-                        {onlineUsers && onlineUsers.has && onlineUsers.has(String(activeConversation.otherUser.id)) ? 'En ligne' : 'Hors ligne'}
-                      </div>
+                      {(() => {
+                        const isOtherUserOnline = onlineUsers?.has?.(String(activeConversation.otherUser.id));
+                        return (
+                          <div className="flex items-center text-xs text-gray-500">
+                            <div className={`w-2 h-2 rounded-full mr-2 ${isOtherUserOnline ? 'bg-green-500' : 'bg-gray-400'}`} />
+                            {isOtherUserOnline ? 'En ligne' : 'Hors ligne'}
+                          </div>
+                        );
+                      })()}
                     </div>
                   </div>
-
+  
                   <div className="flex items-center space-x-2">
                     <Link
                       href={`/listings/${activeConversation.listing.id}`}
@@ -777,14 +782,14 @@ export default function MessagesPage() {
                   </div>
                 </div>
               </div>
-
+  
               {/* Zone des messages */}
               <div
                 ref={messagesContainerRef}
                 className="flex-1 overflow-y-auto px-4 py-4"
                 style={{
                   scrollBehavior: 'smooth',
-                  maxHeight: 'calc(100vh - 180px)'
+                  maxHeight: 'calc(100vh - 240px)' // Ajusté pour tenir compte du header
                 }}
               >
                 {conversationLoading ? (
@@ -799,7 +804,7 @@ export default function MessagesPage() {
                         new Date(conversationMessages[index - 1].createdAt).toDateString() !== new Date(message.createdAt).toDateString();
                       const type = message.attachment_type || getAttachmentType(message.attachment);
                       const url = message.attachment ? `http://localhost:8000/media/${message.attachment}` : null;
-
+  
                       return (
                         <div key={message.id}>
                           {showDate && (
@@ -877,7 +882,7 @@ export default function MessagesPage() {
                   </div>
                 )}
               </div>
-
+  
               {/* Zone de saisie - Toujours visible si une conversation est active */}
               <div className="border-t border-gray-200 p-4 bg-white flex-shrink-0">
                 <form onSubmit={handleSendMessage} className="flex items-end space-x-3">
