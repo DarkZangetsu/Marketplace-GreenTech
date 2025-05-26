@@ -1,15 +1,9 @@
 import { GET_LISTINGS } from '@/lib/graphql/queries';
 import { useQuery } from '@apollo/client';
-import { ArrowRight, Gift, MapPin } from 'lucide-react'
-import Image from 'next/image'
-import Link from 'next/link'
-import React from 'react'
-
-// Helper to format price
-const formatPrice = (price) => {
-  if (price === 0) return "Gratuit";
-  return new Intl.NumberFormat("fr-MG", { style: "currency", currency: "MGA" }).format(price);
-};
+import { ArrowRight, Gift } from 'lucide-react';
+import Link from 'next/link';
+import React from 'react';
+import ListingCard from '../ListingCard';
 
 export default function Listings() {
   // Requête GraphQL pour récupérer exactement 4 annonces actives
@@ -47,43 +41,7 @@ export default function Listings() {
             ) : listingsData?.listings?.length ? (
               // Affichage des 4 annonces récupérées (ou moins si moins disponibles)
               listingsData.listings.slice(0, 4).map(listing => (
-                <div key={listing.id} className="card hover:shadow-lg transition-shadow">
-                  <div className="relative h-48 w-full bg-gray-200">
-                    {listing.images && listing.images.length > 0 ? (
-                      <Image
-                        src={`http://localhost:8000/media/${listing.images[0].image}`}
-                        alt={listing.title}
-                        fill
-                        className="object-cover"
-                      />
-                    ) : (
-                      <div className="absolute inset-0 flex items-center justify-center bg-gray-200">
-                        <span className="text-gray-500 text-xs">[Image: {listing.title}]</span>
-                      </div>
-                    )}
-                  </div>
-                  <div className="p-4">
-                    <div className="flex justify-between items-start mb-2">
-                      <h3 className="font-semibold text-lg">{listing.title}</h3>
-                      <span className="text-sm font-bold text-green-600">{formatPrice(listing.price)}</span>
-                    </div>
-                    <p className="text-gray-600 text-sm mb-3 line-clamp-2">{listing.description}</p>
-                    <div className="flex justify-between items-center mt-4">
-                      <div className="flex items-center text-gray-500 text-sm">
-                        <MapPin size={14} className="mr-1" />
-                        <span>{listing.location}</span>
-                      </div>
-                      <div className="text-xs text-gray-400">
-                        {new Date(listing.createdAt).toLocaleDateString()}
-                      </div>
-                    </div>
-                  </div>
-                  <div className="px-4 py-3 bg-gray-50 border-t">
-                    <Link href={`/listings/${listing.id}`} className="text-green-600 hover:text-green-700 text-sm font-medium">
-                      Voir les détails
-                    </Link>
-                  </div>
-                </div>
+                <ListingCard key={listing.id} listing={listing} viewMode="grid" />
               ))
             ) : (
               // Message si aucune annonce n'est disponible
@@ -100,5 +58,5 @@ export default function Listings() {
         </div>
       </section>
     </div>
-  )
+  );
 }

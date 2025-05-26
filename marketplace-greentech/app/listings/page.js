@@ -4,9 +4,9 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { useQuery } from '@apollo/client';
 import { GET_LISTINGS, GET_CATEGORIES } from '@/lib/graphql/queries';
-import Link from 'next/link';
-import Image from 'next/image';
-import { Search, Filter, MapPin, Calendar, ArrowUpDown, Grid, List, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, Filter, ArrowUpDown, Grid, List, ChevronLeft, ChevronRight } from 'lucide-react';
+import ListingCard from '../components/ListingCard';
+
 
 function useDebouncedValue(value, delay) {
   const [debounced, setDebounced] = useState(value);
@@ -327,115 +327,19 @@ export default function ListingsPage() {
                   </div>
                 </div>
                 
-                {viewMode === 'grid' ? (
-                  /* Grid view */
-                  <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
-                    {paginatedListings.map(listing => (
-                      <Link 
-                        href={`/listings/${listing.id}`} 
-                        key={listing.id}
-                        className="card hover:shadow-lg transition-shadow"
-                      >
-                        <div className="relative h-48 w-full bg-gray-200">
-                          {listing.images && listing.images.length > 0 ? (
-                            <Image
-                              src={`http://localhost:8000/media/${listing.images[0].image}`}
-                              alt={listing.title}
-                              fill
-                              className="object-cover"
-                            />
-                          ) : (
-                            <div className="absolute inset-0 flex items-center justify-center bg-gray-200">
-                              <span className="text-gray-500 text-xs">Pas d'image</span>
-                            </div>
-                          )}
-                          <div className="absolute top-2 right-2 bg-white px-2 py-1 rounded-md shadow-sm">
-                            <span className="font-medium text-green-600">
-                              {listing.isFree ? 'Gratuit' : `${listing.price} Ar`}
-                            </span>
-                          </div>
-                        </div>
-                        <div className="p-4">
-                          <h3 className="font-semibold text-lg">{listing.title}</h3>
-                          <p className="text-gray-600 text-sm mt-1 line-clamp-2">{listing.description}</p>
-                          <div className="mt-4 flex justify-between items-center">
-                            <div className="flex items-center text-gray-500 text-sm">
-                              <MapPin size={14} className="mr-1" />
-                              <span>{listing.location}</span>
-                            </div>
-                            <div className="flex items-center text-gray-500 text-sm">
-                              <Calendar size={14} className="mr-1" />
-                              <span>{new Date(listing.createdAt).toLocaleDateString()}</span>
-                            </div>
-                          </div>
-                          <div className="mt-3 flex items-center justify-between">
-                            <span className="text-xs px-2 py-1 bg-gray-100 text-gray-700 rounded-full">
-                              {listing.category.name}
-                            </span>
-                            <span className="text-xs px-2 py-1 bg-green-50 text-green-600 rounded-full">
-                              {listing.condition}
-                            </span>
-                          </div>
-                        </div>
-                      </Link>
-                    ))}
-                  </div>
-                ) : (
-                  /* List view */
-                  <div className="space-y-4">
-                    {paginatedListings.map(listing => (
-                      <Link 
-                        href={`/listings/${listing.id}`} 
-                        key={listing.id}
-                        className="card hover:shadow-lg transition-shadow"
-                      >
-                        <div className="flex flex-col sm:flex-row">
-                          <div className="relative h-48 sm:h-auto sm:w-48 bg-gray-200">
-                            {listing.images && listing.images.length > 0 ? (
-                              <Image
-                                src={`http://localhost:8000/media/${listing.images[0].image}`}
-                                alt={listing.title}
-                                fill
-                                className="object-cover"
-                              />
-                            ) : (
-                              <div className="absolute inset-0 flex items-center justify-center bg-gray-200">
-                                <span className="text-gray-500 text-xs">Pas d'image</span>
-                              </div>
-                            )}
-                          </div>
-                          <div className="p-4 flex-1">
-                            <div className="flex flex-col sm:flex-row sm:justify-between sm:items-start">
-                              <h3 className="font-semibold text-lg">{listing.title}</h3>
-                              <div className="mt-2 sm:mt-0 bg-green-50 px-3 py-1 rounded-full text-green-600 font-medium">
-                                {listing.isFree ? 'Gratuit' : `${listing.price} Ar`}
-                              </div>
-                            </div>
-                            <p className="text-gray-600 text-sm mt-2">{listing.description}</p>
-                            <div className="mt-4 flex flex-wrap gap-2">
-                              <span className="text-xs px-2 py-1 bg-gray-100 text-gray-700 rounded-full">
-                                {listing.category.name}
-                              </span>
-                              <span className="text-xs px-2 py-1 bg-green-50 text-green-600 rounded-full">
-                                {listing.condition}
-                              </span>
-                            </div>
-                            <div className="mt-3 flex justify-between items-center">
-                              <div className="flex items-center text-gray-500 text-sm">
-                                <MapPin size={14} className="mr-1" />
-                                <span>{listing.location}</span>
-                              </div>
-                              <div className="flex items-center text-gray-500 text-sm">
-                                <Calendar size={14} className="mr-1" />
-                                <span>{new Date(listing.createdAt).toLocaleDateString()}</span>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-                      </Link>
-                    ))}
-                  </div>
-                )}
+                {/* Listings grid/list */}
+                <div className={viewMode === 'grid' 
+                  ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6" 
+                  : "space-y-4"
+                }>
+                  {paginatedListings.map(listing => (
+                    <ListingCard 
+                      key={listing.id} 
+                      listing={listing} 
+                      viewMode={viewMode} 
+                    />
+                  ))}
+                </div>
 
                 {/* Load more button */}
                 {hasMore && (
