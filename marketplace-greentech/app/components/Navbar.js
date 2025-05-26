@@ -204,12 +204,12 @@ export default function Navbar() {
                   </Link>
 
                   {/* Favoris */}
-                  <Link
+                  {/* <Link
                     href="/favorites"
                     className="p-2 text-gray-600 hover:text-green-600 hover:bg-green-50 rounded-full transition-all duration-200"
                   >
                     <Heart className="h-5 w-5" />
-                  </Link>
+                  </Link> */}
 
                   {/* Menu utilisateur */}
                   <HeadlessMenu as="div" className="relative">
@@ -256,9 +256,9 @@ export default function Navbar() {
                           <MenuItemWithIcon href="/messages" icon={MessageCircle}>
                             Messages
                           </MenuItemWithIcon>
-                          <MenuItemWithIcon href="/favorites" icon={Heart}>
+                          {/* <MenuItemWithIcon href="/favorites" icon={Heart}>
                             Mes favoris
-                          </MenuItemWithIcon>
+                          </MenuItemWithIcon> */}
                           <div className="border-t border-gray-100 my-1"></div>
                           <HeadlessMenu.Item>
                             {({ active }) => (
@@ -358,7 +358,7 @@ export default function Navbar() {
                   <MobileNavLink href="/dashboard">Mon tableau de bord</MobileNavLink>
                   <MobileNavLink href="/profile">Mon profil</MobileNavLink>
                   <MobileNavLink href="/messages">Messages</MobileNavLink>
-                  <MobileNavLink href="/favorites">Mes favoris</MobileNavLink>
+                  {/* <MobileNavLink href="/favorites">Mes favoris</MobileNavLink> */}
                   <button
                     onClick={confirmLogout}
                     className="block w-full text-left px-3 py-2 rounded-lg text-red-600 hover:text-red-700 hover:bg-red-50 transition-all duration-200"
