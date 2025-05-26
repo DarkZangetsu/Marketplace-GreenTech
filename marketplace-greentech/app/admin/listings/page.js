@@ -4,7 +4,7 @@ import { useState } from 'react';
 import { useQuery, useMutation } from '@apollo/client';
 import { GET_ALL_LISTINGS_ADMIN } from '@/lib/graphql/queries';
 import { UPDATE_LISTING_STATUS, DELETE_LISTING_ADMIN } from '@/lib/graphql/mutations';
-import { Search, Filter, Trash2, Eye, EyeOff } from 'lucide-react';
+import { Search, Filter, Trash2, Eye, EyeOff, ChevronLeft, ChevronRight } from 'lucide-react';
 import toast from 'react-hot-toast';
 import Image from 'next/image';
 
@@ -13,6 +13,10 @@ export default function AdminListings() {
   const [statusFilter, setStatusFilter] = useState('');
   const [selectedListing, setSelectedListing] = useState(null);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
+  
+  // États pour la pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 10;
 
   const { data, loading, refetch } = useQuery(GET_ALL_LISTINGS_ADMIN, {
     variables: {
@@ -36,11 +40,41 @@ export default function AdminListings() {
       refetch();
       setShowDeleteModal(false);
       toast.success('Annonce supprimée');
+      
+      // Ajuster la page courante si nécessaire
+      const newTotal = listings.length - 1;
+      const newTotalPages = Math.ceil(newTotal / itemsPerPage);
+      if (currentPage > newTotalPages && newTotalPages > 0) {
+        setCurrentPage(newTotalPages);
+      }
     },
     onError: (error) => {
       toast.error(error.message);
     }
   });
+
+  // Calcul de la pagination
+  const listings = data?.allListings || [];
+  const totalPages = Math.ceil(listings.length / itemsPerPage);
+  const startIndex = (currentPage - 1) * itemsPerPage;
+  const endIndex = startIndex + itemsPerPage;
+  const currentListings = listings.slice(startIndex, endIndex);
+
+  const goToPage = (page) => {
+    setCurrentPage(page);
+  };
+
+  const goToPreviousPage = () => {
+    if (currentPage > 1) {
+      setCurrentPage(currentPage - 1);
+    }
+  };
+
+  const goToNextPage = () => {
+    if (currentPage < totalPages) {
+      setCurrentPage(currentPage + 1);
+    }
+  };
 
   const handleStatusChange = async (listingId, currentStatus) => {
     const newStatus = currentStatus === 'active' ? 'inactive' : 'active';
@@ -73,6 +107,17 @@ export default function AdminListings() {
     }
   };
 
+  // Réinitialiser la page quand on change les filtres
+  const handleSearchChange = (e) => {
+    setSearchQuery(e.target.value);
+    setCurrentPage(1);
+  };
+
+  const handleStatusFilterChange = (e) => {
+    setStatusFilter(e.target.value);
+    setCurrentPage(1);
+  };
+
   return (
     <div className="p-6">
       <div className="mb-6">
@@ -88,7 +133,7 @@ export default function AdminListings() {
               type="text"
               placeholder="Rechercher une annonce..."
               value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
+              onChange={handleSearchChange}
               className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
             />
             <Search className="absolute left-3 top-2.5 h-5 w-5 text-gray-400" />
@@ -97,7 +142,7 @@ export default function AdminListings() {
         <div className="flex items-center gap-4">
           <select
             value={statusFilter}
-            onChange={(e) => setStatusFilter(e.target.value)}
+            onChange={handleStatusFilterChange}
             className="px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500"
           >
             <option value="">Tous les statuts</option>
@@ -140,14 +185,14 @@ export default function AdminListings() {
                   Chargement...
                 </td>
               </tr>
-            ) : data?.allListings?.length === 0 ? (
+            ) : currentListings.length === 0 ? (
               <tr>
                 <td colSpan="6" className="px-6 py-4 text-center text-gray-500">
                   Aucune annonce trouvée
                 </td>
               </tr>
             ) : (
-              data?.allListings?.map((listing) => (
+              currentListings.map((listing) => (
                 <tr key={listing.id}>
                   <td className="px-6 py-4">
                     <div className="flex items-center">
@@ -226,6 +271,62 @@ export default function AdminListings() {
             )}
           </tbody>
         </table>
+
+        {/* Pagination */}
+        {!loading && listings.length > 0 && (
+          <div className="bg-white px-4 py-3 border-t border-gray-200 sm:px-6">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center text-sm text-gray-700">
+                <span>
+                  Affichage de {startIndex + 1} à {Math.min(endIndex, listings.length)} sur {listings.length} annonces
+                </span>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  onClick={goToPreviousPage}
+                  disabled={currentPage === 1}
+                  className={`flex items-center px-3 py-2 text-sm font-medium rounded-lg ${
+                    currentPage === 1
+                      ? 'text-gray-400 cursor-not-allowed'
+                      : 'text-gray-700 bg-white hover:bg-gray-50 border border-gray-300'
+                  }`}
+                >
+                  <ChevronLeft size={16} className="mr-1" />
+                  Précédent
+                </button>
+                
+                <div className="flex gap-1">
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
+                    <button
+                      key={page}
+                      onClick={() => goToPage(page)}
+                      className={`px-3 py-2 text-sm font-medium rounded-lg ${
+                        page === currentPage
+                          ? 'bg-green-600 text-white'
+                          : 'text-gray-700 bg-white hover:bg-gray-50 border border-gray-300'
+                      }`}
+                    >
+                      {page}
+                    </button>
+                  ))}
+                </div>
+
+                <button
+                  onClick={goToNextPage}
+                  disabled={currentPage === totalPages}
+                  className={`flex items-center px-3 py-2 text-sm font-medium rounded-lg ${
+                    currentPage === totalPages
+                      ? 'text-gray-400 cursor-not-allowed'
+                      : 'text-gray-700 bg-white hover:bg-gray-50 border border-gray-300'
+                  }`}
+                >
+                  Suivant
+                  <ChevronRight size={16} className="ml-1" />
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Modal de confirmation de suppression */}
@@ -257,4 +358,4 @@ export default function AdminListings() {
       )}
     </div>
   );
-} 
+}
