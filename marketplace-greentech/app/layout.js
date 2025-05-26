@@ -24,7 +24,15 @@ function ConditionalLayout({ children }) {
   }, [pathname]);
 
   // Pages où on ne veut pas afficher navbar et footer
-  const othersPages = ['/auth/login', '/auth/register','/admin', '/dashboard/messages', '/admin/users', '/admin/listings', '/admin/categories'];
+  const othersPages = [
+    '/auth/login', 
+    '/auth/register',
+    '/admin', 
+    '/dashboard/messages', 
+    '/admin/users', 
+    '/admin/listings', 
+    '/admin/categories'
+  ];
   const isOthersPage = othersPages.includes(pathname);
 
   if (isOthersPage) {
