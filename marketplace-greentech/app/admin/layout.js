@@ -25,6 +25,7 @@ export default function AdminLayout({ children }) {
   const [isAuthorized, setIsAuthorized] = useState(false);
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
+  const [showLogoutConfirm, setShowLogoutConfirm] = useState(false);
 
   // Navigation items
   const navigationItems = [
@@ -86,10 +87,41 @@ export default function AdminLayout({ children }) {
     }
   });
 
-  // Handle logout
-  const handleLogout = () => {
-    // Logique de déconnexion
-    router.push('/auth/login');
+  // Handle logout confirmation
+  const handleLogoutClick = () => {
+    setShowLogoutConfirm(true);
+    setUserMenuOpen(false);
+  };
+
+  // Handle confirmed logout
+  const handleConfirmedLogout = () => {
+    try {
+      // Supprimer le token du localStorage
+      localStorage.removeItem('token');
+      localStorage.removeItem('authToken');
+      // Supprimer d'autres données d'authentification si nécessaire
+      localStorage.removeItem('refreshToken');
+      localStorage.removeItem('user');
+      
+      // Optionnel: Clear Apollo Client cache
+      // if (apolloClient) {
+      //   apolloClient.clearStore();
+      // }
+      
+      // Rediriger vers la page de connexion
+      router.push('/auth/login');
+    } catch (error) {
+      console.error('Erreur lors de la déconnexion:', error);
+      // Même en cas d'erreur, rediriger vers la page de login
+      router.push('/auth/login');
+    } finally {
+      setShowLogoutConfirm(false);
+    }
+  };
+
+  // Cancel logout
+  const handleCancelLogout = () => {
+    setShowLogoutConfirm(false);
   };
 
   // Loading state
@@ -236,7 +268,7 @@ export default function AdminLayout({ children }) {
               {userMenuOpen && sidebarOpen && (
                 <div className="absolute bottom-full mb-2 left-0 right-0 bg-slate-800 rounded-xl shadow-lg border border-slate-700 py-2">
                   <button
-                    onClick={handleLogout}
+                    onClick={handleLogoutClick}
                     className="w-full flex items-center px-4 py-2 text-sm text-red-400 hover:bg-red-900/20"
                   >
                     <LogOut className="w-4 h-4 mr-3" />
@@ -272,7 +304,7 @@ export default function AdminLayout({ children }) {
           </header>
 
           {/* Page content - Blanc */}
-          <main className="flex-1 overflow-auto bg-white p-6">
+          <main className="flex-1 overflow-auto bg-gray-100 p-6">
             <div className="max-w-7xl mx-auto">
               {children}
             </div>
@@ -286,6 +318,58 @@ export default function AdminLayout({ children }) {
           className="md:hidden fixed inset-0 bg-black bg-opacity-50 z-40"
           onClick={() => setSidebarOpen(false)}
         />
+      )}
+
+      {/* Logout Confirmation Modal */}
+      {showLogoutConfirm && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl shadow-2xl max-w-md w-full mx-4 overflow-hidden">
+            {/* Modal Header */}
+            <div className="p-6 border-b border-gray-200">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 bg-orange-100 rounded-full flex items-center justify-center">
+                  <LogOut className="w-5 h-5 text-orange-600" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-semibold text-gray-900">
+                    Confirmer la déconnexion
+                  </h3>
+                  <p className="text-sm text-gray-500">
+                    Cette action va vous déconnecter
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            {/* Modal Body */}
+            <div className="p-6">
+              <p className="text-gray-700 mb-4">
+                Êtes-vous sûr de vouloir vous déconnecter ? Vous devrez vous reconnecter pour accéder au tableau de bord.
+              </p>
+              <div className="bg-amber-50 border border-amber-200 rounded-lg p-3">
+                <p className="text-sm text-amber-800">
+                  <strong>Note :</strong> Vos données de session seront supprimées et vous serez redirigé vers la page de connexion.
+                </p>
+              </div>
+            </div>
+
+            {/* Modal Footer */}
+            <div className="px-6 py-4 bg-gray-50 border-t border-gray-200 flex items-center justify-end space-x-3">
+              <button
+                onClick={handleCancelLogout}
+                className="px-4 py-2 text-sm font-medium text-gray-700 bg-white border border-gray-300 rounded-lg hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 transition-colors"
+              >
+                Annuler
+              </button>
+              <button
+                onClick={handleConfirmedLogout}
+                className="px-4 py-2 text-sm font-medium text-white bg-red-600 border border-transparent rounded-lg hover:bg-red-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 transition-colors"
+              >
+                Se déconnecter
+              </button>
+            </div>
+          </div>
+        </div>
       )}
     </div>
   );
