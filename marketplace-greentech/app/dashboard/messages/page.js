@@ -14,40 +14,9 @@ import { StatusIndicator } from '@/app/components/messages/StatusIndicator';
 import { formatDate, formatMessageDate, getFullName, getProfilePictureUrl, getFileUrl } from '@/app/components/messages/Helper';
 import data from '@emoji-mart/data';
 import Picker from '@emoji-mart/react';
+import { getAttachmentType } from '@/app/components/messages/AttachmentType';
+import Lightbox from '@/app/components/messages/Lightbox';
 
-const getAttachmentType = (filename) => {
-  if (!filename) return 'file';
-  const ext = filename.split('.').pop().toLowerCase();
-  if (['jpg', 'jpeg', 'png', 'gif', 'bmp', 'webp'].includes(ext)) return 'image';
-  if (['mp4', 'webm', 'ogg', 'mov'].includes(ext)) return 'video';
-  if (['mp3', 'wav', 'ogg'].includes(ext)) return 'audio';
-  if (['pdf'].includes(ext)) return 'pdf';
-  if (['txt', 'md', 'csv', 'json'].includes(ext)) return 'text';
-  return 'file';
-};
-
-function Lightbox({ open, onClose, url, type }) {
-  if (!open) return null;
-  return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black bg-opacity-80" onClick={onClose}>
-      <div className="relative max-w-3xl w-full max-h-[90vh] flex flex-col items-center" onClick={e => e.stopPropagation()}>
-        <button onClick={onClose} className="absolute top-2 right-2 text-white text-2xl font-bold z-10">×</button>
-        {type === 'image' ? (
-          <img src={url} alt="Aperçu" className="max-h-[80vh] max-w-full rounded-lg" />
-        ) : type === 'video' ? (
-          <video src={url} controls autoPlay className="max-h-[80vh] max-w-full rounded-lg bg-black" />
-        ) : null}
-        <a
-          href={url}
-          download
-          className="mt-4 px-4 py-2 bg-white text-gray-800 rounded shadow hover:bg-gray-100"
-        >
-          Télécharger
-        </a>
-      </div>
-    </div>
-  );
-}
 
 export default function MessagesPage() {
   const searchParams = useSearchParams();
@@ -664,13 +633,13 @@ export default function MessagesPage() {
                               <User size={20} className="text-gray-500" />
                             )}
                           </div>
-                          <div className="absolute -bottom-1 -right-1">
+                          {/* <div className="absolute -bottom-1 -right-1">
                             <StatusIndicator 
                               isOnline={onlineUsers && onlineUsers.has && onlineUsers.has(String(conversation.otherUser.id))} 
                               userId={conversation.otherUser.id}
                               onlineUsers={onlineUsers}
                             />
-                          </div>
+                          </div> */}
                         </div>
   
                         <div className="flex-1 min-w-0">
@@ -744,18 +713,18 @@ export default function MessagesPage() {
                           <User size={18} className="text-gray-500" />
                         )}
                       </div>
-                      <div className="absolute -bottom-1 -right-1">
+                      {/* <div className="absolute -bottom-1 -right-1">
                         <StatusIndicator 
                           isOnline={onlineUsers && onlineUsers.has && onlineUsers.has(String(activeConversation.otherUser.id))} 
                           userId={activeConversation.otherUser.id}
                           onlineUsers={onlineUsers}
                         />
-                      </div>
+                      </div> */}
                     </div>
   
                     <div>
                       <h3 className="font-medium text-gray-900">{getFullName(activeConversation.otherUser)}</h3>
-                      {(() => {
+                      {/* {(() => {
                         const isOtherUserOnline = onlineUsers?.has?.(String(activeConversation.otherUser.id));
                         return (
                           <div className="flex items-center text-xs text-gray-500">
@@ -763,7 +732,7 @@ export default function MessagesPage() {
                             {isOtherUserOnline ? 'En ligne' : 'Hors ligne'}
                           </div>
                         );
-                      })()}
+                      })()} */}
                     </div>
                   </div>
   
