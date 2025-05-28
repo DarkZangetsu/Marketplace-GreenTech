@@ -10,7 +10,6 @@ import { GET_CONVERSATION, GET_ME, MY_MESSAGES } from '@/lib/graphql/queries';
 import { MARK_MESSAGE_AS_READ, SEND_MESSAGE } from '@/lib/graphql/mutations';
 import { useWebSocket } from '@/lib/hooks/useWebSocket';
 import Image from 'next/image';
-import Navbar from '@/app/components/Navbar';
 import { StatusIndicator } from '@/app/components/messages/StatusIndicator';
 import { formatDate, formatMessageDate, getFullName, getProfilePictureUrl, getFileUrl } from '@/app/components/messages/Helper';
 import data from '@emoji-mart/data';
