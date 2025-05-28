@@ -1,7 +1,7 @@
 /* eslint-disable react/no-unescaped-entities */
 'use client';
 
-import { useState, use } from 'react';
+import { useState, use, useEffect } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import {
@@ -34,23 +34,32 @@ export default function ListingDetailPage({ params }) {
   const { id } = unwrappedParams;
 
   const router = useRouter();
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [checkingAuth, setCheckingAuth] = useState(true);
+
+  // Vérifier si l'utilisateur est connecté (par exemple en vérifiant le token)
+  useEffect(() => {
+    // Vérifiez votre méthode d'authentification ici
+    // Par exemple, vérifier le localStorage, sessionStorage, ou un cookie
+    const token = localStorage.getItem('token') || sessionStorage.getItem('token');
+    setIsAuthenticated(!!token);
+    setCheckingAuth(false);
+  }, []);
 
   // Fetch listing data from GraphQL API
   const { loading, error, data, refetch } = useQuery(GET_LISTING, {
     variables: { id },
   });
 
-  // Fetch current user data - Skip if there's no token/auth
+  // Fetch current user data SEULEMENT si l'utilisateur est connecté
   const { data: userData } = useQuery(GET_ME, {
-    skip: typeof window !== 'undefined' && !localStorage.getItem('token'), // Skip si pas de token
-    errorPolicy: 'ignore', // Ignore les erreurs pour cette query
-    fetchPolicy: 'cache-first', // Utilise le cache si disponible
+    skip: !isAuthenticated, // Skip cette requête si l'utilisateur n'est pas authentifié
+    errorPolicy: 'ignore', // Ignorer les erreurs pour cette requête
   });
 
   const [activeImageIndex, setActiveImageIndex] = useState(0);
   const [showContactForm, setShowContactForm] = useState(false);
   const [message, setMessage] = useState('');
-  // const [isFavorite, setIsFavorite] = useState(false);
   const [showSuccess, setShowSuccess] = useState(false);
   const [isEditModalOpen, setIsEditModalOpen] = useState(false);
 
@@ -62,7 +71,7 @@ export default function ListingDetailPage({ params }) {
         setMessage('');
         
         setTimeout(() => {
-          router.push(`/dashboard/messages?listing=${id}`);
+          router.push(`/dashboard/messages`);
         }, 2000);
       }
     },
@@ -71,10 +80,11 @@ export default function ListingDetailPage({ params }) {
     }
   });
 
-  const currentUser = userData?.me;
+  // Obtenir l'utilisateur actuel seulement s'il est authentifié
+  const currentUser = isAuthenticated ? userData?.me : null;
 
   // Handle loading and error states
-  if (loading) return <div className="container mx-auto px-4 py-8 flex justify-center"><p>Chargement en cours...</p></div>;
+  if (loading || checkingAuth) return <div className="container mx-auto px-4 py-8 flex justify-center"><p>Chargement en cours...</p></div>;
   if (error) return <div className="container mx-auto px-4 py-8 flex justify-center"><p>Erreur de chargement: {error.message}</p></div>;
 
   // Get the listing from the data
@@ -112,7 +122,6 @@ export default function ListingDetailPage({ params }) {
       console.error('Error sending message:', error);
     }
   };
-
 
   const formatPrice = (price) => {
     if (price === 0 || listing.isFree) return 'Gratuit';
@@ -341,7 +350,7 @@ export default function ListingDetailPage({ params }) {
               </div>
 
               {/* Contact section - Show different content based on user status */}
-              {!currentUser ? (
+              {!isAuthenticated ? (
                 // Not logged in
                 <div className="bg-gray-50 border border-gray-200 rounded-md p-4 text-center">
                   <p className="text-gray-600 mb-3">Connectez-vous pour contacter le vendeur</p>
@@ -441,13 +450,12 @@ export default function ListingDetailPage({ params }) {
           </div>
 
           {/* Actions card */}
-          {!isOwner && currentUser && (
+          {!isOwner && isAuthenticated && (
             <div className="bg-white rounded-lg shadow-sm border border-gray-200 overflow-hidden">
               <div className="p-6">
                 <h2 className="text-lg font-semibold text-gray-900 mb-4">Actions</h2>
 
                 <div className="space-y-3">
-
                   <button className="w-full flex items-center justify-center px-4 py-2 bg-gray-50 text-gray-700 border border-gray-200 rounded-md hover:bg-gray-100">
                     <Share2 size={18} className="mr-2" />
                     <span>Partager l'annonce</span>
@@ -485,15 +493,17 @@ export default function ListingDetailPage({ params }) {
       {/* Similar listings section would go here */}
 
       {/* Ajouter le modal d'édition */}
-      <EditListingDetailModal
-        listing={listing}
-        isOpen={isEditModalOpen}
-        onClose={() => setIsEditModalOpen(false)}
-        onUpdate={() => {
-          // Rafraîchir les données de l'annonce
-          refetch();
-        }}
-      />
+      {isAuthenticated && (
+        <EditListingDetailModal
+          listing={listing}
+          isOpen={isEditModalOpen}
+          onClose={() => setIsEditModalOpen(false)}
+          onUpdate={() => {
+            // Rafraîchir les données de l'annonce
+            refetch();
+          }}
+        />
+      )}
     </div>
   );
 }

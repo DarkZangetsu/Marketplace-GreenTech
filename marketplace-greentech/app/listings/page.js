@@ -4,29 +4,19 @@
 import { useState, useMemo, useRef, useEffect } from 'react';
 import { useQuery } from '@apollo/client';
 import { GET_LISTINGS, GET_CATEGORIES } from '@/lib/graphql/queries';
-import { Search, Filter, ArrowUpDown, Grid, List, ChevronLeft, ChevronRight } from 'lucide-react';
+import { Search, Filter, ArrowUpDown, Grid, List, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import ListingCard from '../components/ListingCard';
-
-
-function useDebouncedValue(value, delay) {
-  const [debounced, setDebounced] = useState(value);
-  const timeoutRef = useRef();
-  
-  useEffect(() => {
-    clearTimeout(timeoutRef.current);
-    timeoutRef.current = setTimeout(() => {
-      setDebounced(value);
-    }, delay);
-    return () => clearTimeout(timeoutRef.current);
-  }, [value, delay]);
-  return debounced;
-}
+import { conditions, locations } from '../components/constants/CreateListingConstant';
 
 export default function ListingsPage() {
   const [viewMode, setViewMode] = useState('grid');
   const [showFilters, setShowFilters] = useState(false);
-  const [filters, setFilters] = useState({
-    search: '',
+  
+  // État de recherche complètement séparé et dynamique
+  const [searchTerm, setSearchTerm] = useState('');
+  
+  // Filtres temporaires (sans la recherche)
+  const [tempFilters, setTempFilters] = useState({
     categoryId: '',
     condition: '',
     minPrice: '',
@@ -36,37 +26,66 @@ export default function ListingsPage() {
     sortBy: 'date-desc'
   });
 
+  // Filtres appliqués (sans la recherche)
+  const [appliedFilters, setAppliedFilters] = useState({
+    categoryId: '',
+    condition: '',
+    minPrice: '',
+    maxPrice: '',
+    location: '',
+    status: 'active',
+    sortBy: 'date-desc'
+  });
+
+  // Fonction pour transformer les conditions en format API (UPPER_CASE)
+  const formatConditionForAPI = (condition) => {
+    if (!condition) return undefined;
+    return condition.toUpperCase().replace('-', '_');
+  };
+
   const [currentPage, setCurrentPage] = useState(1);
   const itemsPerPage = 12;
-
-  // Debounced filters for Apollo query
-  const debouncedFilters = useDebouncedValue(filters, 500);
 
   const { data: categoriesData } = useQuery(GET_CATEGORIES);
   const { data: listingsData, loading, error } = useQuery(GET_LISTINGS, {
     variables: {
-      search: debouncedFilters.search || undefined,
-      categoryId: debouncedFilters.categoryId || undefined,
-      condition: debouncedFilters.condition || undefined,
-      minPrice: debouncedFilters.minPrice ? parseFloat(debouncedFilters.minPrice) : undefined,
-      maxPrice: debouncedFilters.maxPrice ? parseFloat(debouncedFilters.maxPrice) : undefined,
-      location: debouncedFilters.location || undefined,
-      status: debouncedFilters.status
+      categoryId: appliedFilters.categoryId || undefined,
+      condition: formatConditionForAPI(appliedFilters.condition),
+      minPrice: appliedFilters.minPrice ? parseFloat(appliedFilters.minPrice) : undefined,
+      maxPrice: appliedFilters.maxPrice ? parseFloat(appliedFilters.maxPrice) : undefined,
+      location: appliedFilters.location || undefined,
+      status: appliedFilters.status
     }
   });
 
-  const handleFilterChange = (e) => {
-    const { name, value } = e.target;
-    setFilters(prev => ({
-      ...prev,
-      [name]: value
-    }));
+  // Gestionnaire pour la recherche dynamique
+  const handleSearchChange = (e) => {
+    setSearchTerm(e.target.value);
+    setCurrentPage(1); // Reset à la première page lors d'une nouvelle recherche
+  };
+
+  // Fonction pour réinitialiser uniquement la recherche
+  const clearSearch = () => {
+    setSearchTerm('');
     setCurrentPage(1);
   };
 
+  const handleTempFilterChange = (e) => {
+    const { name, value } = e.target;
+    setTempFilters(prev => ({
+      ...prev,
+      [name]: value
+    }));
+  };
+
+  const applyFilters = () => {
+    setAppliedFilters({ ...tempFilters });
+    setCurrentPage(1);
+    setShowFilters(false); // Fermer les filtres sur mobile après application
+  };
+
   const resetFilters = () => {
-    setFilters({
-      search: '',
+    const defaultFilters = {
       categoryId: '',
       condition: '',
       minPrice: '',
@@ -74,8 +93,16 @@ export default function ListingsPage() {
       location: '',
       status: 'active',
       sortBy: 'date-desc'
-    });
+    };
+    setTempFilters(defaultFilters);
+    setAppliedFilters(defaultFilters);
     setCurrentPage(1);
+  };
+
+  // Fonction pour réinitialiser tout (recherche + filtres)
+  const resetAll = () => {
+    setSearchTerm('');
+    resetFilters();
   };
 
   const filteredAndSortedListings = useMemo(() => {
@@ -83,22 +110,33 @@ export default function ListingsPage() {
 
     let result = [...listingsData.listings];
 
+    // Filtrage par recherche (dynamique, côté client)
+    if (searchTerm.trim()) {
+      const searchLower = searchTerm.toLowerCase().trim();
+      result = result.filter(listing => 
+        listing.title?.toLowerCase().includes(searchLower) ||
+        listing.description?.toLowerCase().includes(searchLower) ||
+        listing.category?.name?.toLowerCase().includes(searchLower) ||
+        listing.location?.toLowerCase().includes(searchLower)
+      );
+    }
+
     // Trier les annonces
     result.sort((a, b) => {
-      if (filters.sortBy === 'date-desc') {
+      if (appliedFilters.sortBy === 'date-desc') {
         return new Date(b.createdAt) - new Date(a.createdAt);
-      } else if (filters.sortBy === 'date-asc') {
+      } else if (appliedFilters.sortBy === 'date-asc') {
         return new Date(a.createdAt) - new Date(b.createdAt);
-      } else if (filters.sortBy === 'price-asc') {
+      } else if (appliedFilters.sortBy === 'price-asc') {
         return a.price - b.price;
-      } else if (filters.sortBy === 'price-desc') {
+      } else if (appliedFilters.sortBy === 'price-desc') {
         return b.price - a.price;
       }
       return 0;
     });
 
     return result;
-  }, [listingsData?.listings, filters.sortBy]);
+  }, [listingsData?.listings, searchTerm, appliedFilters.sortBy]);
 
   const paginatedListings = useMemo(() => {
     const startIndex = (currentPage - 1) * itemsPerPage;
@@ -107,6 +145,19 @@ export default function ListingsPage() {
 
   const totalPages = Math.ceil(filteredAndSortedListings.length / itemsPerPage);
   const hasMore = currentPage < totalPages;
+
+  // Compter les filtres actifs (séparément)
+  const activeFiltersCount = useMemo(() => {
+    let count = 0;
+    if (appliedFilters.categoryId) count++;
+    if (appliedFilters.condition) count++;
+    if (appliedFilters.minPrice || appliedFilters.maxPrice) count++;
+    if (appliedFilters.location) count++;
+    return count;
+  }, [appliedFilters]);
+
+  // Vérifier si une recherche est active
+  const hasActiveSearch = searchTerm.trim() !== '';
 
   if (loading && !listingsData) {
     return (
@@ -129,195 +180,182 @@ export default function ListingsPage() {
   }
 
   return (
-    <div className="container mx-auto px-4 py-8">
-      <div className="flex flex-col gap-6">
-        {/* Header */}
-        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4">
-          <div>
-            <h1 className="text-3xl font-bold text-gray-900">Annonces</h1>
-            <p className="text-gray-600 mt-1">
-              {filteredAndSortedListings.length} matériaux disponibles
-            </p>
-          </div>
-          
-          <div className="flex flex-col md:flex-row gap-4 w-full md:w-auto">
-            {/* Search */}
-            <div className="relative w-full md:w-64">
-              <input
-                type="text"
-                name="search"
-                placeholder="Rechercher une annonce..."
-                className="w-full pl-10 pr-4 py-2 border border-gray-200 rounded-md focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                value={filters.search}
-                onChange={handleFilterChange}
-              />
-              <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
+    <div className="min-h-screen bg-gray-50">
+      <div className="container mx-auto px-4 sm:px-6 lg:px-8 py-6 sm:py-8">
+        <div className="flex flex-col gap-6">
+          {/* Header */}
+          <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
+            <div>
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Annonces</h1>
+              <p className="text-gray-600 mt-1 text-sm sm:text-base">
+                {filteredAndSortedListings.length} matériaux disponibles
+              </p>
             </div>
             
-            {/* Filter button (mobile) */}
-            <button
-              className="md:hidden flex items-center justify-center gap-2 w-full py-2 border border-gray-200 rounded-md hover:bg-gray-50"
-              onClick={() => setShowFilters(!showFilters)}
-            >
-              <Filter size={18} />
-              <span>{showFilters ? 'Masquer les filtres' : 'Afficher les filtres'}</span>
-            </button>
-            
-            {/* View mode toggle */}
-            <div className="hidden md:flex items-center bg-gray-100 rounded-md p-1">
-              <button
-                className={`flex items-center justify-center p-1 rounded ${viewMode === 'grid' ? 'bg-white shadow-sm' : 'hover:bg-gray-200'}`}
-                onClick={() => setViewMode('grid')}
-                aria-label="Vue en grille"
-              >
-                <Grid size={20} />
-              </button>
-              <button
-                className={`flex items-center justify-center p-1 rounded ${viewMode === 'list' ? 'bg-white shadow-sm' : 'hover:bg-gray-200'}`}
-                onClick={() => setViewMode('list')}
-                aria-label="Vue en liste"
-              >
-                <List size={20} />
-              </button>
-            </div>
-          </div>
-        </div>
-        
-        {/* Filters and content */}
-        <div className="flex flex-col md:flex-row gap-6">
-          {/* Sidebar filters */}
-          <div className={`md:w-64 md:block ${showFilters ? 'block' : 'hidden'}`}>
-            <div className="bg-white p-4 border border-gray-200 rounded-lg shadow-sm">
-              <div className="flex justify-between items-center mb-4">
-                <h2 className="text-lg font-semibold">Filtres</h2>
-                <button 
-                  className="text-green-600 hover:text-green-800 text-sm font-medium"
-                  onClick={resetFilters}
-                >
-                  Réinitialiser
-                </button>
+            <div className="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+              {/* Search - complètement séparée et dynamique */}
+              <div className="relative w-full sm:w-64">
+                <input
+                  type="text"
+                  placeholder="Rechercher une annonce..."
+                  className="w-full pl-10 pr-10 py-2.5 border border-gray-200 rounded-lg focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm"
+                  value={searchTerm}
+                  onChange={handleSearchChange}
+                />
+                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400" size={18} />
+                {hasActiveSearch && (
+                  <button
+                    onClick={clearSearch}
+                    className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600"
+                  >
+                    <X size={16} />
+                  </button>
+                )}
               </div>
               
-              {/* Filter sections */}
-              <div className="space-y-6">
-                {/* Category filter */}
-                <div>
-                  <h3 className="text-sm font-medium text-gray-700 mb-2">Catégorie</h3>
-                  <select
-                    name="categoryId"
-                    className="w-full border border-gray-200 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                    value={filters.categoryId}
-                    onChange={handleFilterChange}
-                  >
-                    <option value="">Toutes les catégories</option>
-                    {categoriesData?.categories.map(category => (
-                      <option key={category.id} value={category.id}>{category.name}</option>
-                    ))}
-                  </select>
-                </div>
-                
-                {/* Condition filter */}
-                <div>
-                  <h3 className="text-sm font-medium text-gray-700 mb-2">État</h3>
-                  <select
-                    name="condition"
-                    className="w-full border border-gray-200 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                    value={filters.condition}
-                    onChange={handleFilterChange}
-                  >
-                    <option value="">Tous les états</option>
-                    <option value="new">Neuf</option>
-                    <option value="like_new">Comme neuf</option>
-                    <option value="good">Bon état</option>
-                    <option value="fair">État moyen</option>
-                    <option value="poor">Mauvais état</option>
-                  </select>
-                </div>
-                
-                {/* Price filter */}
-                <div>
-                  <h3 className="text-sm font-medium text-gray-700 mb-2">Prix</h3>
-                  <div className="grid grid-cols-2 gap-2">
-                    <input
-                      type="number"
-                      name="minPrice"
-                      value={filters.minPrice}
-                      onChange={handleFilterChange}
-                      placeholder="Min"
-                      className="w-full border border-gray-200 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                    />
-                    <input
-                      type="number"
-                      name="maxPrice"
-                      value={filters.maxPrice}
-                      onChange={handleFilterChange}
-                      placeholder="Max"
-                      className="w-full border border-gray-200 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                    />
-                  </div>
-                </div>
-                
-                {/* Location filter */}
-                <div>
-                  <h3 className="text-sm font-medium text-gray-700 mb-2">Localisation</h3>
-                  <input
-                    type="text"
-                    name="location"
-                    value={filters.location}
-                    onChange={handleFilterChange}
-                    placeholder="Ville, région..."
-                    className="w-full border border-gray-200 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                  />
-                </div>
-                
-                {/* Sort filter */}
-                <div>
-                  <h3 className="text-sm font-medium text-gray-700 mb-2">Trier par</h3>
-                  <select
-                    name="sortBy"
-                    className="w-full border border-gray-200 rounded-md px-3 py-2 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent"
-                    value={filters.sortBy}
-                    onChange={handleFilterChange}
-                  >
-                    <option value="date-desc">Plus récentes</option>
-                    <option value="date-asc">Plus anciennes</option>
-                    <option value="price-asc">Prix croissant</option>
-                    <option value="price-desc">Prix décroissant</option>
-                  </select>
-                </div>
+              {/* Filter button */}
+              <button
+                className="flex items-center justify-center gap-2 px-4 py-2.5 border border-gray-200 rounded-lg hover:bg-gray-50 bg-white relative text-sm font-medium"
+                onClick={() => setShowFilters(!showFilters)}
+              >
+                <Filter size={18} />
+                <span className="hidden sm:inline">
+                  {showFilters ? 'Masquer' : 'Filtres'}
+                </span>
+                <span className="sm:hidden">Filtres</span>
+                {activeFiltersCount > 0 && (
+                  <span className="absolute -top-2 -right-2 bg-green-600 text-white text-xs rounded-full h-5 w-5 flex items-center justify-center">
+                    {activeFiltersCount}
+                  </span>
+                )}
+              </button>
+              
+              {/* View mode toggle - Desktop only */}
+              <div className="hidden lg:flex items-center bg-gray-100 rounded-lg p-1">
+                <button
+                  className={`flex items-center justify-center p-2 rounded ${viewMode === 'grid' ? 'bg-white shadow-sm' : 'hover:bg-gray-200'}`}
+                  onClick={() => setViewMode('grid')}
+                  aria-label="Vue en grille"
+                >
+                  <Grid size={18} />
+                </button>
+                <button
+                  className={`flex items-center justify-center p-2 rounded ${viewMode === 'list' ? 'bg-white shadow-sm' : 'hover:bg-gray-200'}`}
+                  onClick={() => setViewMode('list')}
+                  aria-label="Vue en liste"
+                >
+                  <List size={18} />
+                </button>
               </div>
             </div>
           </div>
           
-          {/* Listings content */}
-          <div className="flex-1">
-            {paginatedListings.length === 0 ? (
-              <div className="flex flex-col items-center justify-center bg-white border border-gray-200 rounded-lg p-8 text-center">
-                <div className="bg-gray-100 p-4 rounded-full mb-4">
-                  <Search className="h-8 w-8 text-gray-400" />
-                </div>
-                <h3 className="text-lg font-medium text-gray-900 mb-2">Aucune annonce trouvée</h3>
-                <p className="text-gray-600 max-w-md">
-                  Essayez de modifier vos filtres ou votre recherche pour trouver ce que vous cherchez.
-                </p>
-                <button
-                  className="mt-4 text-green-600 hover:text-green-800 font-medium"
-                  onClick={resetFilters}
+          {/* Filters panel */}
+          {showFilters && (
+            <div className="bg-white border border-gray-200 rounded-lg shadow-sm">
+              {/* Mobile filter header */}
+              <div className="sm:hidden flex justify-between items-center p-4 border-b border-gray-200">
+                <h2 className="text-lg font-semibold">Filtres</h2>
+                <button 
+                  className="p-1 hover:bg-gray-100 rounded"
+                  onClick={() => setShowFilters(false)}
                 >
-                  Réinitialiser les filtres
+                  <X size={20} />
                 </button>
               </div>
-            ) : (
-              <>
-                {/* Sort dropdown (mobile) */}
-                <div className="md:hidden mb-4">
-                  <div className="flex items-center bg-white px-3 py-2 border border-gray-200 rounded-md">
-                    <ArrowUpDown size={16} className="text-gray-500 mr-2" />
+
+              <div className="p-4 sm:p-6">
+                <div className="hidden sm:flex justify-between items-center mb-6">
+                  <h2 className="text-lg font-semibold">Filtres</h2>
+                  <button 
+                    className="text-green-600 hover:text-green-800 text-sm font-medium"
+                    onClick={resetFilters}
+                  >
+                    Réinitialiser les filtres
+                  </button>
+                </div>
+                
+                {/* Filter sections */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-4 sm:gap-6">
+                  {/* Category filter */}
+                  <div className="lg:col-span-1">
+                    <h3 className="text-sm font-medium text-gray-700 mb-2">Catégorie</h3>
+                    <select
+                      name="categoryId"
+                      className="w-full border border-gray-200 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm"
+                      value={tempFilters.categoryId}
+                      onChange={handleTempFilterChange}
+                    >
+                      <option value="">Toutes les catégories</option>
+                      {categoriesData?.categories.map(category => (
+                        <option key={category.id} value={category.id}>{category.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  
+                  {/* Condition filter */}
+                  <div className="lg:col-span-1">
+                    <h3 className="text-sm font-medium text-gray-700 mb-2">État</h3>
+                    <select
+                      name="condition"
+                      className="w-full border border-gray-200 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm"
+                      value={tempFilters.condition}
+                      onChange={handleTempFilterChange}
+                    >
+                      <option value="">Tous les états</option>
+                      {conditions.map(condition => (
+                        <option key={condition.id} value={condition.id}>{condition.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  
+                  {/* Price filter */}
+                  <div className="lg:col-span-1">
+                    <h3 className="text-sm font-medium text-gray-700 mb-2">Prix (en Ariary)</h3>
+                    <div className="grid grid-cols-2 gap-2">
+                      <input
+                        type="number"
+                        name="minPrice"
+                        value={tempFilters.minPrice}
+                        onChange={handleTempFilterChange}
+                        placeholder="Min"
+                        className="w-full border border-gray-200 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm"
+                      />
+                      <input
+                        type="number"
+                        name="maxPrice"
+                        value={tempFilters.maxPrice}
+                        onChange={handleTempFilterChange}
+                        placeholder="Max"
+                        className="w-full border border-gray-200 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm"
+                      />
+                    </div>
+                  </div>
+                  
+                  {/* Location filter */}
+                  <div className="lg:col-span-1">
+                    <h3 className="text-sm font-medium text-gray-700 mb-2">Localisation</h3>
+                    <select
+                      name="location"
+                      className="w-full border border-gray-200 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm"
+                      value={tempFilters.location}
+                      onChange={handleTempFilterChange}
+                    >
+                      <option value="">Toutes les villes</option>
+                      {locations.map(location => (
+                        <option key={location.id} value={location.id}>{location.name}</option>
+                      ))}
+                    </select>
+                  </div>
+                  
+                  {/* Sort filter */}
+                  <div className="lg:col-span-1">
+                    <h3 className="text-sm font-medium text-gray-700 mb-2">Trier par</h3>
                     <select
                       name="sortBy"
-                      className="w-full bg-transparent border-none focus:outline-none text-sm"
-                      value={filters.sortBy}
-                      onChange={handleFilterChange}
+                      className="w-full border border-gray-200 rounded-lg px-3 py-2.5 focus:outline-none focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm"
+                      value={tempFilters.sortBy}
+                      onChange={handleTempFilterChange}
                     >
                       <option value="date-desc">Plus récentes</option>
                       <option value="date-asc">Plus anciennes</option>
@@ -326,10 +364,183 @@ export default function ListingsPage() {
                     </select>
                   </div>
                 </div>
+
+                {/* Action buttons */}
+                <div className="flex flex-col sm:flex-row gap-3 mt-6 pt-4 border-t border-gray-200">
+                  <button
+                    onClick={applyFilters}
+                    className="flex-1 bg-green-600 text-white px-4 py-2.5 rounded-lg hover:bg-green-700 font-medium text-sm transition-colors"
+                  >
+                    Appliquer les filtres
+                  </button>
+                  <button
+                    onClick={resetFilters}
+                    className="flex-1 sm:flex-none bg-gray-100 text-gray-700 px-4 py-2.5 rounded-lg hover:bg-gray-200 font-medium text-sm transition-colors"
+                  >
+                    Réinitialiser les filtres
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {/* Active filters and search display */}
+          {(hasActiveSearch || activeFiltersCount > 0) && (
+            <div className="flex flex-wrap gap-2 items-center">
+              {/* Search indicator */}
+              {hasActiveSearch && (
+                <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                  <Search size={12} className="mr-1" />
+                  Recherche: "{searchTerm}"
+                  <button 
+                    onClick={clearSearch}
+                    className="ml-2 hover:text-blue-600"
+                  >
+                    <X size={14} />
+                  </button>
+                </span>
+              )}
+              
+              {/* Filter indicators */}
+              {appliedFilters.categoryId && (
+                <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                  Catégorie: {categoriesData?.categories.find(c => c.id === appliedFilters.categoryId)?.name}
+                  <button 
+                    onClick={() => {
+                      setTempFilters(prev => ({ ...prev, categoryId: '' }));
+                      setAppliedFilters(prev => ({ ...prev, categoryId: '' }));
+                    }}
+                    className="ml-2 hover:text-green-600"
+                  >
+                    <X size={14} />
+                  </button>
+                </span>
+              )}
+              {appliedFilters.condition && (
+                <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                  État: {conditions.find(c => c.id === appliedFilters.condition)?.name}
+                  <button 
+                    onClick={() => {
+                      setTempFilters(prev => ({ ...prev, condition: '' }));
+                      setAppliedFilters(prev => ({ ...prev, condition: '' }));
+                    }}
+                    className="ml-2 hover:text-green-600"
+                  >
+                    <X size={14} />
+                  </button>
+                </span>
+              )}
+              {appliedFilters.location && (
+                <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                  Ville: {locations.find(l => l.id === appliedFilters.location)?.name}
+                  <button 
+                    onClick={() => {
+                      setTempFilters(prev => ({ ...prev, location: '' }));
+                      setAppliedFilters(prev => ({ ...prev, location: '' }));
+                    }}
+                    className="ml-2 hover:text-green-600"
+                  >
+                    <X size={14} />
+                  </button>
+                </span>
+              )}
+              {(appliedFilters.minPrice || appliedFilters.maxPrice) && (
+                <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
+                  Prix: {appliedFilters.minPrice || '0'}€ - {appliedFilters.maxPrice || '∞'}€
+                  <button 
+                    onClick={() => {
+                      setTempFilters(prev => ({ ...prev, minPrice: '', maxPrice: '' }));
+                      setAppliedFilters(prev => ({ ...prev, minPrice: '', maxPrice: '' }));
+                    }}
+                    className="ml-2 hover:text-green-600"
+                  >
+                    <X size={14} />
+                  </button>
+                </span>
+              )}
+
+              {/* Reset all button when both search and filters are active */}
+              {hasActiveSearch && activeFiltersCount > 0 && (
+                <button
+                  onClick={resetAll}
+                  className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-700 hover:bg-gray-200"
+                >
+                  Tout réinitialiser
+                </button>
+              )}
+            </div>
+          )}
+          
+          {/* Listings content */}
+          <div className="flex-1">
+            {paginatedListings.length === 0 ? (
+              <div className="flex flex-col items-center justify-center bg-white border border-gray-200 rounded-lg p-8 sm:p-12 text-center">
+                <div className="bg-gray-100 p-4 rounded-full mb-4">
+                  <Search className="h-8 w-8 text-gray-400" />
+                </div>
+                <h3 className="text-lg font-medium text-gray-900 mb-2">Aucune annonce trouvée</h3>
+                <p className="text-gray-600 max-w-md mb-4">
+                  {hasActiveSearch && activeFiltersCount > 0 
+                    ? "Essayez de modifier votre recherche ou vos filtres pour trouver ce que vous cherchez."
+                    : hasActiveSearch 
+                    ? "Aucun résultat pour cette recherche. Essayez d'autres mots-clés."
+                    : activeFiltersCount > 0
+                    ? "Aucune annonce ne correspond à vos filtres. Essayez de les modifier."
+                    : "Aucune annonce disponible pour le moment."
+                  }
+                </p>
+                <div className="flex gap-2">
+                  {hasActiveSearch && (
+                    <button
+                      className="text-blue-600 hover:text-blue-800 font-medium text-sm"
+                      onClick={clearSearch}
+                    >
+                      Effacer la recherche
+                    </button>
+                  )}
+                  {activeFiltersCount > 0 && (
+                    <button
+                      className="text-green-600 hover:text-green-800 font-medium text-sm"
+                      onClick={resetFilters}
+                    >
+                      Réinitialiser les filtres
+                    </button>
+                  )}
+                  {hasActiveSearch && activeFiltersCount > 0 && (
+                    <button
+                      className="text-gray-600 hover:text-gray-800 font-medium text-sm"
+                      onClick={resetAll}
+                    >
+                      Tout réinitialiser
+                    </button>
+                  )}
+                </div>
+              </div>
+            ) : (
+              <>
+                {/* View mode toggle - Mobile */}
+                <div className="lg:hidden mb-4">
+                  <div className="flex items-center bg-gray-100 rounded-lg p-1 w-fit">
+                    <button
+                      className={`flex items-center justify-center p-2 rounded ${viewMode === 'grid' ? 'bg-white shadow-sm' : 'hover:bg-gray-200'}`}
+                      onClick={() => setViewMode('grid')}
+                      aria-label="Vue en grille"
+                    >
+                      <Grid size={18} />
+                    </button>
+                    <button
+                      className={`flex items-center justify-center p-2 rounded ${viewMode === 'list' ? 'bg-white shadow-sm' : 'hover:bg-gray-200'}`}
+                      onClick={() => setViewMode('list')}
+                      aria-label="Vue en liste"
+                    >
+                      <List size={18} />
+                    </button>
+                  </div>
+                </div>
                 
                 {/* Listings grid/list */}
                 <div className={viewMode === 'grid' 
-                  ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6" 
+                  ? "grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 sm:gap-6" 
                   : "space-y-4"
                 }>
                   {paginatedListings.map(listing => (
@@ -347,7 +558,7 @@ export default function ListingsPage() {
                     <button
                       onClick={() => setCurrentPage(prev => prev + 1)}
                       disabled={loading}
-                      className="inline-flex items-center px-4 py-2 border border-transparent text-sm font-medium rounded-md text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50"
+                      className="inline-flex items-center px-6 py-3 border border-transparent text-sm font-medium rounded-lg text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 transition-colors"
                     >
                       {loading ? (
                         <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
@@ -360,27 +571,71 @@ export default function ListingsPage() {
 
                 {/* Pagination */}
                 {totalPages > 1 && (
-                  <div className="mt-8 flex justify-center items-center gap-2">
+                  <div className="mt-8 flex justify-center items-center gap-1 sm:gap-2">
                     <button
                       onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                       disabled={currentPage === 1}
-                      className="px-3 py-1 rounded border border-gray-300 bg-white text-gray-700 hover:bg-gray-100 disabled:opacity-50"
+                      className="px-2 sm:px-3 py-2 rounded-lg border border-gray-300 bg-white text-gray-700 hover:bg-gray-100 disabled:opacity-50 transition-colors"
                     >
                       <ChevronLeft size={18} />
                     </button>
-                    {Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
-                      <button
-                        key={page}
-                        onClick={() => setCurrentPage(page)}
-                        className={`px-3 py-1 rounded border ${page === currentPage ? 'bg-green-600 text-white border-green-600' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-100'}`}
-                      >
-                        {page}
-                      </button>
-                    ))}
+                    
+                    {/* Pagination intelligente pour mobile */}
+                    {typeof window !== 'undefined' && window.innerWidth < 640 ? (
+                      <>
+                        {currentPage > 2 && (
+                          <>
+                            <button
+                              onClick={() => setCurrentPage(1)}
+                              className="px-3 py-2 rounded-lg border bg-white text-gray-700 border-gray-300 hover:bg-gray-100"
+                            >
+                              1
+                            </button>
+                            {currentPage > 3 && <span className="px-2">...</span>}
+                          </>
+                        )}
+                        
+                        {Array.from({ length: 3 }, (_, i) => currentPage - 1 + i)
+                          .filter(page => page >= 1 && page <= totalPages)
+                          .map(page => (
+                            <button
+                              key={page}
+                              onClick={() => setCurrentPage(page)}
+                              className={`px-3 py-2 rounded-lg border ${page === currentPage ? 'bg-green-600 text-white border-green-600' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-100'}`}
+                            >
+                              {page}
+                            </button>
+                          ))
+                        }
+                        
+                        {currentPage < totalPages - 1 && (
+                          <>
+                            {currentPage < totalPages - 2 && <span className="px-2">...</span>}
+                            <button
+                              onClick={() => setCurrentPage(totalPages)}
+                              className="px-3 py-2 rounded-lg border bg-white text-gray-700 border-gray-300 hover:bg-gray-100"
+                            >
+                              {totalPages}
+                            </button>
+                          </>
+                        )}
+                      </>
+                    ) : (
+                      Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
+                        <button
+                          key={page}
+                          onClick={() => setCurrentPage(page)}
+                          className={`px-3 py-2 rounded-lg border transition-colors ${page === currentPage ? 'bg-green-600 text-white border-green-600' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-100'}`}
+                        >
+                          {page}
+                        </button>
+                      ))
+                    )}
+                    
                     <button
                       onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
                       disabled={currentPage === totalPages}
-                      className="px-3 py-1 rounded border border-gray-300 bg-white text-gray-700 hover:bg-gray-100 disabled:opacity-50"
+                      className="px-2 sm:px-3 py-2 rounded-lg border border-gray-300 bg-white text-gray-700 hover:bg-gray-100 disabled:opacity-50 transition-colors"
                     >
                       <ChevronRight size={18} />
                     </button>
