@@ -39,6 +39,7 @@ export default function MessagesPage() {
   const fileInputRef = useRef(null);
 
   const [lightbox, setLightbox] = useState({ open: false, url: '', type: '' });
+  const [visibleMessages, setVisibleMessages] = useState(new Set());
 
   // GraphQL queries et mutations
   const { data: userData } = useQuery(GET_ME);
@@ -103,6 +104,44 @@ export default function MessagesPage() {
   });
 
   const currentUser = userData?.me;
+
+  // Composant pour observer la visibilité des messages
+  const MessageVisibilityObserver = ({ messageId, children }) => {
+    const messageRef = useRef(null);
+
+    useEffect(() => {
+      const messageElement = messageRef.current;
+      if (!messageElement) return;
+
+      const observer = new IntersectionObserver(
+        (entries) => {
+          entries.forEach((entry) => {
+            if (entry.isIntersecting) {
+              setVisibleMessages(prev => new Set([...prev, messageId]));
+            } else {
+              setVisibleMessages(prev => {
+                const newSet = new Set(prev);
+                newSet.delete(messageId);
+                return newSet;
+              });
+            }
+          });
+        },
+        {
+          threshold: 0.5, // Message considéré comme visible quand 50% est visible
+          rootMargin: '0px 0px -50px 0px' // Marge pour déclencher plus tôt
+        }
+      );
+
+      observer.observe(messageElement);
+
+      return () => {
+        observer.unobserve(messageElement);
+      };
+    }, [messageId]);
+
+    return <div ref={messageRef}>{children}</div>;
+  };
 
   // Fonction pour faire défiler vers le bas
   const scrollToBottom = () => {
@@ -184,7 +223,7 @@ export default function MessagesPage() {
 
   // Gestion de l'affichage et marquage comme lu
   if (activeConversation && currentUser && message?.sender && message?.receiver && message?.listing) {
-    const isRelevantToActiveConversation = 
+    const isRelevantToActiveConversation =
       ((message.sender.id === activeConversation.otherUser?.id && message.receiver.id === currentUser.id) ||
        (message.sender.id === currentUser.id && message.receiver.id === activeConversation.otherUser?.id)) &&
       message.listing.id === activeConversation.listing?.id;
@@ -192,12 +231,12 @@ export default function MessagesPage() {
     if (isRelevantToActiveConversation) {
       // Défiler vers le bas pour les nouveaux messages
       setTimeout(scrollToBottom, 100);
-      
-      // Marquer comme lu si c'est un message reçu
+
+      // Marquer comme lu immédiatement si c'est un message reçu dans la conversation active
       if (message.receiver.id === currentUser.id && message.sender.id === activeConversation.otherUser?.id) {
         setTimeout(() => {
           handleMarkAsRead(message.id);
-        }, 1000);
+        }, 300); // Réduit le délai pour un marquage plus rapide
       }
     }
   }
@@ -369,13 +408,114 @@ export default function MessagesPage() {
     return messages.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
   }, [allMessages, activeConversation, currentUser]);
 
-  // Défiler vers le bas quand la conversation change
+  // Marquer un message comme lu
+  const handleMarkAsRead = async (messageId) => {
+    try {
+      await markAsRead({
+        variables: { messageId }
+      });
+
+      // Mettre à jour l'état local immédiatement
+      setAllMessages(prev =>
+        prev.map(msg =>
+          msg.id === messageId ? { ...msg, isRead: true } : msg
+        )
+      );
+
+      // Déclencher la mise à jour des conversations
+      setLastMessageUpdate(Date.now());
+
+    } catch (error) {
+      console.error('Erreur lors du marquage comme lu:', error);
+    }
+  };
+
+  // Marquer plusieurs messages comme lus avec optimisation
+  const handleMarkMultipleAsRead = useCallback(async (messageIds) => {
+    if (!messageIds || messageIds.length === 0) {
+      return;
+    }
+
+    console.log('Marquage de plusieurs messages comme lus:', messageIds.length);
+
+    // Mettre à jour l'état local immédiatement pour tous les messages
+    setAllMessages(prev =>
+      prev.map(msg =>
+        messageIds.includes(msg.id) ? { ...msg, isRead: true } : msg
+      )
+    );
+
+    // Déclencher la mise à jour des conversations
+    setLastMessageUpdate(Date.now());
+
+    // Marquer chaque message individuellement (en parallèle pour optimiser)
+    const markPromises = messageIds.map(async (messageId) => {
+      try {
+        await markAsRead({
+          variables: { messageId }
+        });
+      } catch (error) {
+        console.error('Erreur lors du marquage du message:', messageId, error);
+        // En cas d'erreur, remettre le message comme non lu dans l'état local
+        setAllMessages(prev =>
+          prev.map(msg =>
+            msg.id === messageId ? { ...msg, isRead: false } : msg
+          )
+        );
+      }
+    });
+
+    // Attendre que tous les marquages soient terminés
+    await Promise.allSettled(markPromises);
+  }, [markAsRead]);
+
+  // Marquer tous les messages non lus d'une conversation comme lus
+  const markConversationAsRead = useCallback(async (conversation) => {
+    if (!conversation || !currentUser || conversation.unreadCount === 0) {
+      return;
+    }
+
+    console.log('Marquage des messages comme lus pour la conversation:', conversation.id);
+
+    // Récupérer tous les messages non lus de cette conversation
+    const unreadMessages = allMessages.filter(message => {
+      if (!message || !message.receiver || !message.sender || !message.listing) {
+        return false;
+      }
+
+      return (
+        message.receiver.id === currentUser.id &&
+        !message.isRead &&
+        message.sender.id === conversation.otherUser?.id &&
+        message.listing.id === conversation.listing?.id
+      );
+    });
+
+    console.log('Messages non lus trouvés:', unreadMessages.length);
+
+    if (unreadMessages.length > 0) {
+      // Utiliser la fonction optimisée pour marquer plusieurs messages
+      const messageIds = unreadMessages.map(msg => msg.id);
+      await handleMarkMultipleAsRead(messageIds);
+    }
+  }, [allMessages, currentUser, handleMarkMultipleAsRead]);
+
+  // Défiler vers le bas quand la conversation change et marquer les messages comme lus
   useEffect(() => {
     if (activeConversation) {
       const timer = setTimeout(scrollToBottom, 200);
-      return () => clearTimeout(timer);
+
+      // Marquer automatiquement les messages non lus comme lus après un délai
+      const markAsReadTimer = setTimeout(() => {
+        markConversationAsRead(activeConversation);
+      }, 500);
+
+      return () => {
+        clearTimeout(timer);
+        clearTimeout(markAsReadTimer);
+      };
     }
-  }, [activeConversation]);
+  }, [activeConversation, markConversationAsRead]);
 
   // Défiler vers le bas quand de nouveaux messages arrivent dans la conversation active
   useEffect(() => {
@@ -393,12 +533,23 @@ export default function MessagesPage() {
         console.log('Activation de la conversation depuis URL:', conversation.id);
         setActiveConversation(conversation);
         setShowMobileList(false);
+
+        // Marquer les messages comme lus après un délai pour les conversations ouvertes via URL
+        setTimeout(() => {
+          markConversationAsRead(conversation);
+        }, 800);
       }
     } else if (conversations.length > 0 && !activeConversation) {
       console.log('Activation de la première conversation');
-      setActiveConversation(conversations[0]);
+      const firstConversation = conversations[0];
+      setActiveConversation(firstConversation);
+
+      // Marquer les messages comme lus pour la première conversation aussi
+      setTimeout(() => {
+        markConversationAsRead(firstConversation);
+      }, 800);
     }
-  }, [listingIdParam, conversations, activeConversation]);
+  }, [listingIdParam, conversations, activeConversation, markConversationAsRead]);
 
   // Envoyer un message
   const handleSendMessage = async (e) => {
@@ -456,30 +607,39 @@ export default function MessagesPage() {
     setShowEmojiPicker(false);
   };
 
-  // Marquer un message comme lu
-  const handleMarkAsRead = async (messageId) => {
-  try {
-    await markAsRead({
-      variables: { messageId }
+  // Marquer automatiquement les messages visibles comme lus après un délai
+  const markVisibleMessagesAsRead = useCallback(() => {
+    if (!activeConversation || !currentUser || visibleMessages.size === 0) {
+      return;
+    }
+
+    const unreadVisibleMessages = Array.from(visibleMessages).filter(messageId => {
+      const message = allMessages.find(msg => msg.id === messageId);
+      return message &&
+             message.receiver.id === currentUser.id &&
+             !message.isRead &&
+             message.sender.id === activeConversation.otherUser?.id;
     });
-    
-    // Mettre à jour l'état local immédiatement
-    setAllMessages(prev => 
-      prev.map(msg => 
-        msg.id === messageId ? { ...msg, isRead: true } : msg
-      )
-    );
-    
-    // Déclencher la mise à jour des conversations
-    setLastMessageUpdate(Date.now());
-    
-  } catch (error) {
-    console.error('Erreur lors du marquage comme lu:', error);
-  }
-};
+
+    if (unreadVisibleMessages.length > 0) {
+      console.log('Marquage automatique des messages visibles:', unreadVisibleMessages.length);
+      handleMarkMultipleAsRead(unreadVisibleMessages);
+    }
+  }, [activeConversation, currentUser, visibleMessages, allMessages, handleMarkMultipleAsRead]);
+
+  // Effet pour marquer les messages visibles comme lus après un délai
+  useEffect(() => {
+    if (visibleMessages.size > 0) {
+      const timer = setTimeout(() => {
+        markVisibleMessagesAsRead();
+      }, 2000); // Marquer comme lu après 2 secondes de visibilité
+
+      return () => clearTimeout(timer);
+    }
+  }, [visibleMessages, markVisibleMessagesAsRead]);
 
   // Gérer le clic sur une conversation
-  const handleConversationClick = (conversation) => {
+  const handleConversationClick = async (conversation) => {
     if (!conversation || !conversation.otherUser) {
       console.warn('Tentative de clic sur une conversation invalide:', conversation);
       return;
@@ -489,14 +649,10 @@ export default function MessagesPage() {
     setActiveConversation(conversation);
     setShowMobileList(false);
 
-    // Marquer les messages non lus comme lus
-    if (conversation.unreadCount > 0 && conversation.messages) {
-      conversation.messages.forEach(message => {
-        if (message && message.receiver && message.receiver.id === currentUser?.id && !message.isRead) {
-          handleMarkAsRead(message.id);
-        }
-      });
-    }
+    // Marquer les messages non lus comme lus après un court délai
+    setTimeout(() => {
+      markConversationAsRead(conversation);
+    }, 300);
   };
 
   useEffect(() => {
@@ -774,16 +930,17 @@ export default function MessagesPage() {
                       const url = message.attachment ? `http://localhost:8000/media/${message.attachment}` : null;
   
                       return (
-                        <div key={message.id}>
-                          {showDate && (
-                            <div className="text-center py-2">
-                              <span className="bg-gray-100 text-gray-600 text-xs px-3 py-1 rounded-full">
-                                {new Date(message.createdAt).toLocaleDateString('fr-FR')}
-                              </span>
-                            </div>
-                          )}
-                          <div className={`flex ${isFromMe ? 'justify-end' : 'justify-start'}`}>
-                            <div className={`max-w-[75%] sm:max-w-[60%] ${isFromMe ? 'order-2' : 'order-1'}`}>
+                        <MessageVisibilityObserver key={message.id} messageId={message.id}>
+                          <div>
+                            {showDate && (
+                              <div className="text-center py-2">
+                                <span className="bg-gray-100 text-gray-600 text-xs px-3 py-1 rounded-full">
+                                  {new Date(message.createdAt).toLocaleDateString('fr-FR')}
+                                </span>
+                              </div>
+                            )}
+                            <div className={`flex ${isFromMe ? 'justify-end' : 'justify-start'}`}>
+                              <div className={`max-w-[75%] sm:max-w-[60%] ${isFromMe ? 'order-2' : 'order-1'}`}>
                               {/* Affichage du fichier, SANS bulle colorée */}
                               {message.attachment && url && (
                                 type === 'image' ? (
@@ -841,9 +998,10 @@ export default function MessagesPage() {
                                 </div>
                               )}
                               <p className={`text-xs mt-1 px-2 ${isFromMe ? 'text-right text-gray-500' : 'text-left text-gray-500'}`}>{formatMessageDate(message.createdAt)}</p>
+                              </div>
                             </div>
                           </div>
-                        </div>
+                        </MessageVisibilityObserver>
                       );
                     })}
                     <div ref={messagesEndRef} />
