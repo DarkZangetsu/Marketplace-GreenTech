@@ -1,7 +1,7 @@
 'use client';
 
 import Link from 'next/link';
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { Menu, X, ChevronDown, User, LogOut, MessageCircle, BarChart2 } from 'lucide-react';
 import { Menu as HeadlessMenu, Transition } from '@headlessui/react';
 import toast, { Toaster } from 'react-hot-toast';
@@ -9,7 +9,7 @@ import Image from 'next/image';
 import { getProfilePictureUrl } from '@/app/components/messages/Helper';
 import { useQuery } from '@apollo/client';
 import { MY_MESSAGES } from '@/lib/graphql/queries';
-import { GET_ME } from '@/lib/graphql/queries';
+import { useWebSocket } from '@/lib/hooks/useWebSocket';
 
 export default function Navbar() {
   const [isOpen, setIsOpen] = useState(false);
@@ -18,23 +18,99 @@ export default function Navbar() {
   const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [user, setUser] = useState(null);
 
-  // Requête pour récupérer les données de l'utilisateur
-  const { data: userData } = useQuery(GET_ME, {
-    skip: !isAuthenticated,
-    onCompleted: (data) => {
-      if (data?.me) {
-        setUser(data.me);
-        localStorage.setItem('user', JSON.stringify(data.me));
-      }
-    }
-  });
 
-  const { data: messagesData } = useQuery(MY_MESSAGES, {
+  const { data: messagesData, refetch: refetchMessages } = useQuery(MY_MESSAGES, {
     fetchPolicy: 'cache-and-network',
-    skip: !isAuthenticated
+    skip: !isAuthenticated,
+    pollInterval: 30000, 
+    errorPolicy: 'all'
   });
 
   const [unreadCount, setUnreadCount] = useState(0);
+  const [allMessages, setAllMessages] = useState([]);
+  const [lastMessageUpdate, setLastMessageUpdate] = useState(Date.now());
+
+  // Gestionnaire de nouveaux messages WebSocket
+  const handleNewMessage = useCallback((messageData) => {
+    console.log('🔔 Navbar - Nouveau message reçu (raw):', messageData);
+    console.log('🔔 Navbar - Type de données:', typeof messageData);
+    console.log('🔔 Navbar - Structure:', JSON.stringify(messageData, null, 2));
+
+    // Extraction correcte du message selon la structure reçue
+    let message = messageData;
+
+    // Si c'est une mutation SendMessage, extraire le message
+    if (messageData?.sendMessage) {
+      message = messageData.sendMessage;
+      console.log('📦 Navbar - Message extrait de sendMessage:', message);
+    }
+
+    // Si c'est wrappé dans messageObj
+    if (messageData?.messageObj) {
+      message = messageData.messageObj;
+      console.log('📦 Navbar - Message extrait de messageObj:', message);
+    }
+
+    // Si c'est wrappé dans data
+    if (messageData?.data) {
+      message = messageData.data;
+      console.log('📦 Navbar - Message extrait de data:', message);
+    }
+
+    if (!message || !message.id) {
+      console.warn('❌ Navbar - Message invalide reçu:', messageData);
+      return;
+    }
+
+    // Vérifier que toutes les propriétés nécessaires sont présentes
+    if (!message.sender || !message.receiver || !message.listing) {
+      console.warn('❌ Navbar - Message avec propriétés manquantes:', message);
+      console.log('📋 Navbar - Propriétés disponibles:', Object.keys(message));
+      return;
+    }
+
+    setAllMessages(prev => {
+      // Vérifier si le message existe déjà
+      const messageExists = prev.some(msg => msg?.id === message.id);
+      if (messageExists) {
+        console.log('Message déjà existant dans Navbar, ignoré:', message.id);
+        return prev;
+      }
+
+      console.log('✅ Navbar - Ajout du nouveau message à l\'état local');
+      const newMessages = [...prev, message];
+
+      // Forcer la mise à jour du compteur IMMÉDIATEMENT
+      setLastMessageUpdate(Date.now());
+      console.log('🔄 Navbar - Mise à jour du compteur déclenchée IMMÉDIATEMENT');
+
+      return newMessages;
+    });
+
+    // Afficher une notification toast pour les nouveaux messages reçus
+    if (user && message.receiver && message.sender &&
+        message.receiver.id === user.id && message.sender.id !== user.id) {
+      const senderName = message.sender.firstName || message.sender.username || 'Utilisateur';
+      console.log('🔔 Navbar - Affichage notification toast pour:', senderName);
+      toast.success(`Nouveau message de ${senderName}`, {
+        duration: 4000,
+        icon: '💬',
+      });
+    }
+  }, [user]);
+
+  // Initialiser WebSocket pour les notifications en temps réel
+  const { isConnected } = useWebSocket(user?.id, handleNewMessage);
+
+  // Debug: Log de l'état de connexion WebSocket
+  useEffect(() => {
+    console.log('🔌 Navbar WebSocket état:', {
+      isConnected,
+      userId: user?.id,
+      hasToken: !!localStorage.getItem('token'),
+      timestamp: new Date().toISOString()
+    });
+  }, [isConnected, user?.id]);
 
   useEffect(() => {
     setIsClient(true);
@@ -57,12 +133,107 @@ export default function Navbar() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  // Synchroniser les messages GraphQL avec l'état local
   useEffect(() => {
     if (messagesData?.myMessages) {
-      const count = messagesData.myMessages.filter(msg => !msg.isRead && msg.receiver?.id === user?.id).length;
-      setUnreadCount(count);
+      console.log('Synchronisation des messages GraphQL dans Navbar:', messagesData.myMessages.length);
+
+      setAllMessages(prevMessages => {
+        const graphqlMessages = messagesData.myMessages.filter(msg => msg && msg.id);
+        const existingMessageIds = new Set(prevMessages.map(msg => msg?.id).filter(Boolean));
+
+        // Ajouter uniquement les nouveaux messages GraphQL
+        const newGraphqlMessages = graphqlMessages.filter(msg => !existingMessageIds.has(msg.id));
+
+        if (newGraphqlMessages.length > 0) {
+          console.log('Nouveaux messages GraphQL ajoutés dans Navbar:', newGraphqlMessages.length);
+          const mergedMessages = [...prevMessages, ...newGraphqlMessages];
+
+          // Trier par date de création
+          const sortedMessages = mergedMessages.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+
+          // Déclencher la mise à jour du compteur IMMÉDIATEMENT
+          setLastMessageUpdate(Date.now());
+
+          return sortedMessages;
+        }
+
+        return prevMessages;
+      });
     }
-  }, [messagesData, user?.id]);
+  }, [messagesData?.myMessages]);
+
+  // Calculer le nombre de messages non lus en temps réel
+  const unreadMessagesCount = useMemo(() => {
+    if (!user || !allMessages.length) {
+      console.log('📊 Navbar - Compteur: 0 (pas d\'utilisateur ou pas de messages)');
+      return 0;
+    }
+
+    const unreadMessages = allMessages.filter(msg =>
+      msg &&
+      msg.receiver &&
+      msg.receiver.id === user.id &&
+      !msg.isRead
+    );
+
+    const count = unreadMessages.length;
+    console.log('📊 Navbar - Compteur messages non lus:', {
+      total: allMessages.length,
+      unread: count,
+      userId: user.id,
+      lastUpdate: lastMessageUpdate
+    });
+
+    return count;
+  }, [allMessages, user, lastMessageUpdate]);
+
+  // Mettre à jour le compteur affiché IMMÉDIATEMENT
+  useEffect(() => {
+    console.log('🎯 Navbar - Mise à jour du badge IMMÉDIATE:', unreadMessagesCount);
+    setUnreadCount(unreadMessagesCount);
+  }, [unreadMessagesCount]);
+
+  // Écouter les événements de marquage de messages comme lus depuis d'autres composants
+  useEffect(() => {
+    const handleMessageMarkedAsRead = (event) => {
+      const { messageId } = event.detail;
+      console.log('📝 Navbar - Message marqué comme lu:', messageId);
+
+      setAllMessages(prev =>
+        prev.map(msg =>
+          msg.id === messageId ? { ...msg, isRead: true } : msg
+        )
+      );
+
+      // Déclencher la mise à jour du compteur IMMÉDIATEMENT
+      setLastMessageUpdate(Date.now());
+      console.log('🔄 Navbar - Compteur mis à jour après marquage comme lu');
+    };
+
+    const handleMultipleMessagesMarkedAsRead = (event) => {
+      const { messageIds } = event.detail;
+      console.log('📝 Navbar - Plusieurs messages marqués comme lus:', messageIds.length);
+
+      setAllMessages(prev =>
+        prev.map(msg =>
+          messageIds.includes(msg.id) ? { ...msg, isRead: true } : msg
+        )
+      );
+
+      // Déclencher la mise à jour du compteur IMMÉDIATEMENT
+      setLastMessageUpdate(Date.now());
+      console.log('🔄 Navbar - Compteur mis à jour après marquage multiple');
+    };
+
+    window.addEventListener('messageMarkedAsRead', handleMessageMarkedAsRead);
+    window.addEventListener('multipleMessagesMarkedAsRead', handleMultipleMessagesMarkedAsRead);
+
+    return () => {
+      window.removeEventListener('messageMarkedAsRead', handleMessageMarkedAsRead);
+      window.removeEventListener('multipleMessagesMarkedAsRead', handleMultipleMessagesMarkedAsRead);
+    };
+  }, []);
 
   const checkAuthStatus = () => {
     const token = localStorage.getItem('token');

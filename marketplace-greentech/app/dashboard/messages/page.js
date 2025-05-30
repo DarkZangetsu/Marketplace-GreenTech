@@ -425,6 +425,11 @@ export default function MessagesPage() {
       // Déclencher la mise à jour des conversations
       setLastMessageUpdate(Date.now());
 
+      // Émettre un événement pour notifier les autres composants (comme la Navbar)
+      window.dispatchEvent(new CustomEvent('messageMarkedAsRead', {
+        detail: { messageId }
+      }));
+
     } catch (error) {
       console.error('Erreur lors du marquage comme lu:', error);
     }
@@ -467,6 +472,11 @@ export default function MessagesPage() {
 
     // Attendre que tous les marquages soient terminés
     await Promise.allSettled(markPromises);
+
+    // Émettre un événement pour notifier les autres composants (comme la Navbar)
+    window.dispatchEvent(new CustomEvent('multipleMessagesMarkedAsRead', {
+      detail: { messageIds }
+    }));
   }, [markAsRead]);
 
   // Marquer tous les messages non lus d'une conversation comme lus
