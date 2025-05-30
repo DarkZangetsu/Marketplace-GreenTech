@@ -2,6 +2,7 @@
 'use client';
 
 import { useState, useMemo, useRef, useEffect } from 'react';
+import { useSearchParams } from 'next/navigation';
 import { useQuery } from '@apollo/client';
 import { GET_LISTINGS, GET_CATEGORIES } from '@/lib/graphql/queries';
 import { Search, Filter, ArrowUpDown, Grid, List, ChevronLeft, ChevronRight, X } from 'lucide-react';
@@ -9,6 +10,7 @@ import ListingCard from '../components/ListingCard';
 import { conditions, locations } from '../components/constants/CreateListingConstant';
 
 export default function ListingsPage() {
+  const searchParams = useSearchParams();
   const [viewMode, setViewMode] = useState('grid');
   const [showFilters, setShowFilters] = useState(false);
   const [isMobile, setIsMobile] = useState(false);
@@ -24,10 +26,10 @@ export default function ListingsPage() {
 
     return () => window.removeEventListener('resize', checkIsMobile);
   }, []);
-  
+
   // État de recherche complètement séparé et dynamique
   const [searchTerm, setSearchTerm] = useState('');
-  
+
   // Filtres temporaires (sans la recherche)
   const [tempFilters, setTempFilters] = useState({
     categoryId: '',
@@ -50,16 +52,41 @@ export default function ListingsPage() {
     sortBy: 'date-desc'
   });
 
+  // Pagination
+  const [currentPage, setCurrentPage] = useState(1);
+  const itemsPerPage = 12;
+
   // Fonction pour transformer les conditions en format API (UPPER_CASE)
   const formatConditionForAPI = (condition) => {
     if (!condition) return undefined;
     return condition.toUpperCase().replace('-', '_');
   };
 
-  const [currentPage, setCurrentPage] = useState(1);
-  const itemsPerPage = 12;
-
   const { data: categoriesData } = useQuery(GET_CATEGORIES);
+
+  // Hook pour initialiser les filtres depuis l'URL
+  useEffect(() => {
+    const categorySlug = searchParams.get('category');
+    if (categorySlug && categoriesData?.categories) {
+      // Trouver la catégorie par slug
+      const category = categoriesData.categories.find(cat => cat.slug === categorySlug);
+      if (category) {
+        const newFilters = {
+          categoryId: category.id,
+          condition: '',
+          minPrice: '',
+          maxPrice: '',
+          location: '',
+          status: 'active',
+          sortBy: 'date-desc'
+        };
+        setTempFilters(newFilters);
+        setAppliedFilters(newFilters);
+        setCurrentPage(1);
+      }
+    }
+  }, [searchParams, categoriesData?.categories]);
+
   const { data: listingsData, loading, error } = useQuery(GET_LISTINGS, {
     variables: {
       categoryId: appliedFilters.categoryId || undefined,
@@ -171,6 +198,20 @@ export default function ListingsPage() {
   // Vérifier si une recherche est active
   const hasActiveSearch = searchTerm.trim() !== '';
 
+  // Obtenir le nom de la catégorie sélectionnée
+  const selectedCategoryName = useMemo(() => {
+    if (appliedFilters.categoryId && categoriesData?.categories) {
+      const category = categoriesData.categories.find(cat => cat.id === appliedFilters.categoryId);
+      return category?.name || '';
+    }
+    return '';
+  }, [appliedFilters.categoryId, categoriesData?.categories]);
+
+  // Vérifier si on vient d'une catégorie (depuis l'URL)
+  const isFromCategoryPage = useMemo(() => {
+    return searchParams.get('category') !== null;
+  }, [searchParams]);
+
   if (loading && !listingsData) {
     return (
       <div className="min-h-screen pt-20 pb-12 flex flex-col bg-gray-50">
@@ -198,9 +239,17 @@ export default function ListingsPage() {
           {/* Header */}
           <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4">
             <div>
-              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">Annonces</h1>
+              <h1 className="text-2xl sm:text-3xl font-bold text-gray-900">
+                {isFromCategoryPage && selectedCategoryName
+                  ? `Annonces - ${selectedCategoryName}`
+                  : 'Annonces'
+                }
+              </h1>
               <p className="text-gray-600 mt-1 text-sm sm:text-base">
                 {filteredAndSortedListings.length} matériaux disponibles
+                {isFromCategoryPage && selectedCategoryName && (
+                  <span className="text-green-600 font-medium"> dans {selectedCategoryName}</span>
+                )}
               </p>
             </div>
             
@@ -397,30 +446,21 @@ export default function ListingsPage() {
           )}
 
           {/* Active filters and search display */}
-          {(hasActiveSearch || activeFiltersCount > 0) && (
+          {(hasActiveSearch || activeFiltersCount > 0 || isFromCategoryPage) && (
             <div className="flex flex-wrap gap-2 items-center">
-              {/* Search indicator */}
-              {hasActiveSearch && (
-                <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
-                  <Search size={12} className="mr-1" />
-                  Recherche: "{searchTerm}"
-                  <button 
-                    onClick={clearSearch}
-                    className="ml-2 hover:text-blue-600"
-                  >
-                    <X size={14} />
-                  </button>
-                </span>
-              )}
-              
-              {/* Filter indicators */}
-              {appliedFilters.categoryId && (
+              {/* Category indicator (when coming from category page) */}
+              {isFromCategoryPage && selectedCategoryName && (
                 <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
-                  Catégorie: {categoriesData?.categories.find(c => c.id === appliedFilters.categoryId)?.name}
-                  <button 
+                  📂 Catégorie: {selectedCategoryName}
+                  <button
                     onClick={() => {
-                      setTempFilters(prev => ({ ...prev, categoryId: '' }));
-                      setAppliedFilters(prev => ({ ...prev, categoryId: '' }));
+                      // Réinitialiser le filtre de catégorie
+                      const newFilters = { ...appliedFilters, categoryId: '' };
+                      setTempFilters(newFilters);
+                      setAppliedFilters(newFilters);
+                      setCurrentPage(1);
+                      // Optionnel: modifier l'URL pour supprimer le paramètre category
+                      window.history.replaceState({}, '', '/listings');
                     }}
                     className="ml-2 hover:text-green-600"
                   >
@@ -428,6 +468,22 @@ export default function ListingsPage() {
                   </button>
                 </span>
               )}
+
+              {/* Search indicator */}
+              {hasActiveSearch && (
+                <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-blue-100 text-blue-800">
+                  <Search size={12} className="mr-1" />
+                  Recherche: "{searchTerm}"
+                  <button
+                    onClick={clearSearch}
+                    className="ml-2 hover:text-blue-600"
+                  >
+                    <X size={14} />
+                  </button>
+                </span>
+              )}
+
+              {/* Filter indicators */}
               {appliedFilters.condition && (
                 <span className="inline-flex items-center px-3 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800">
                   État: {conditions.find(c => c.id === appliedFilters.condition)?.name}
