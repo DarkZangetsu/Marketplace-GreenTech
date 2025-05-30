@@ -14,6 +14,36 @@ export default function MapContact() {
         link.href = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css';
         document.head.appendChild(link);
 
+        // Ajouter des styles personnalisés pour contrôler le z-index
+        const customStyles = document.createElement('style');
+        customStyles.textContent = `
+          .leaflet-container {
+            z-index: 1 !important;
+          }
+          .leaflet-control-container {
+            z-index: 2 !important;
+          }
+          .leaflet-popup {
+            z-index: 3 !important;
+          }
+          .leaflet-tooltip {
+            z-index: 3 !important;
+          }
+          .leaflet-marker-icon {
+            z-index: 2 !important;
+          }
+          .leaflet-shadow-pane {
+            z-index: 1 !important;
+          }
+          .leaflet-overlay-pane {
+            z-index: 1 !important;
+          }
+          .leaflet-map-pane {
+            z-index: 1 !important;
+          }
+        `;
+        document.head.appendChild(customStyles);
+
         // Charger JS de Leaflet
         const script = document.createElement('script');
         script.src = 'https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js';
@@ -37,7 +67,10 @@ export default function MapContact() {
         const map = window.L.map(mapRef.current, {
           center: fianarantsoa,
           zoom: 13,
-          zoomControl: true
+          zoomControl: true,
+          zoomControlOptions: {
+            position: 'topright'
+          }
         });
 
         // Ajouter les tuiles OpenStreetMap
@@ -171,8 +204,8 @@ export default function MapContact() {
   return (
     <div>
       {/* Map Section */}
-      <section className="py-8">
-        <div className="container mx-auto px-4">
+      <section className="py-8 relative" style={{ zIndex: 1 }}>
+        <div className="container mx-auto px-4 relative" style={{ zIndex: 1 }}>
           <div className="mb-6 text-center">
             <h2 className="text-3xl font-bold text-gray-800 mb-2">
               Localisation
@@ -182,11 +215,11 @@ export default function MapContact() {
             </p>
           </div>
 
-          <div className="bg-white rounded-lg shadow-lg overflow-hidden">
+          <div className="bg-white rounded-lg shadow-lg overflow-hidden relative" style={{ zIndex: 1 }}>
             <div
               ref={mapRef}
               className="h-96 w-full relative"
-              style={{ minHeight: '400px' }}
+              style={{ minHeight: '400px', zIndex: 1 }}
             >
               {/* Fallback content while map loads */}
               <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
