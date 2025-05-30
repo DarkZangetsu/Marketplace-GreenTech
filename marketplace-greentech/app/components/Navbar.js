@@ -19,7 +19,7 @@ export default function Navbar() {
   const [user, setUser] = useState(null);
 
 
-  const { data: messagesData, refetch: refetchMessages } = useQuery(MY_MESSAGES, {
+  const { data: messagesData } = useQuery(MY_MESSAGES, {
     fetchPolicy: 'cache-and-network',
     skip: !isAuthenticated,
     pollInterval: 30000, 
@@ -32,40 +32,30 @@ export default function Navbar() {
 
   // Gestionnaire de nouveaux messages WebSocket
   const handleNewMessage = useCallback((messageData) => {
-    console.log('🔔 Navbar - Nouveau message reçu (raw):', messageData);
-    console.log('🔔 Navbar - Type de données:', typeof messageData);
-    console.log('🔔 Navbar - Structure:', JSON.stringify(messageData, null, 2));
-
     // Extraction correcte du message selon la structure reçue
     let message = messageData;
 
     // Si c'est une mutation SendMessage, extraire le message
     if (messageData?.sendMessage) {
       message = messageData.sendMessage;
-      console.log('📦 Navbar - Message extrait de sendMessage:', message);
     }
 
     // Si c'est wrappé dans messageObj
     if (messageData?.messageObj) {
       message = messageData.messageObj;
-      console.log('📦 Navbar - Message extrait de messageObj:', message);
     }
 
     // Si c'est wrappé dans data
     if (messageData?.data) {
       message = messageData.data;
-      console.log('📦 Navbar - Message extrait de data:', message);
     }
 
     if (!message || !message.id) {
-      console.warn('❌ Navbar - Message invalide reçu:', messageData);
       return;
     }
 
     // Vérifier que toutes les propriétés nécessaires sont présentes
     if (!message.sender || !message.receiver || !message.listing) {
-      console.warn('❌ Navbar - Message avec propriétés manquantes:', message);
-      console.log('📋 Navbar - Propriétés disponibles:', Object.keys(message));
       return;
     }
 
@@ -73,16 +63,13 @@ export default function Navbar() {
       // Vérifier si le message existe déjà
       const messageExists = prev.some(msg => msg?.id === message.id);
       if (messageExists) {
-        console.log('Message déjà existant dans Navbar, ignoré:', message.id);
         return prev;
       }
 
-      console.log('✅ Navbar - Ajout du nouveau message à l\'état local');
       const newMessages = [...prev, message];
 
       // Forcer la mise à jour du compteur IMMÉDIATEMENT
       setLastMessageUpdate(Date.now());
-      console.log('🔄 Navbar - Mise à jour du compteur déclenchée IMMÉDIATEMENT');
 
       return newMessages;
     });
@@ -91,7 +78,6 @@ export default function Navbar() {
     if (user && message.receiver && message.sender &&
         message.receiver.id === user.id && message.sender.id !== user.id) {
       const senderName = message.sender.firstName || message.sender.username || 'Utilisateur';
-      console.log('🔔 Navbar - Affichage notification toast pour:', senderName);
       toast.success(`Nouveau message de ${senderName}`, {
         duration: 4000,
         icon: '💬',
@@ -100,17 +86,7 @@ export default function Navbar() {
   }, [user]);
 
   // Initialiser WebSocket pour les notifications en temps réel
-  const { isConnected } = useWebSocket(user?.id, handleNewMessage);
-
-  // Debug: Log de l'état de connexion WebSocket
-  useEffect(() => {
-    console.log('🔌 Navbar WebSocket état:', {
-      isConnected,
-      userId: user?.id,
-      hasToken: !!localStorage.getItem('token'),
-      timestamp: new Date().toISOString()
-    });
-  }, [isConnected, user?.id]);
+  useWebSocket(user?.id, handleNewMessage);
 
   useEffect(() => {
     setIsClient(true);
@@ -136,8 +112,6 @@ export default function Navbar() {
   // Synchroniser les messages GraphQL avec l'état local
   useEffect(() => {
     if (messagesData?.myMessages) {
-      console.log('Synchronisation des messages GraphQL dans Navbar:', messagesData.myMessages.length);
-
       setAllMessages(prevMessages => {
         const graphqlMessages = messagesData.myMessages.filter(msg => msg && msg.id);
         const existingMessageIds = new Set(prevMessages.map(msg => msg?.id).filter(Boolean));
@@ -146,7 +120,6 @@ export default function Navbar() {
         const newGraphqlMessages = graphqlMessages.filter(msg => !existingMessageIds.has(msg.id));
 
         if (newGraphqlMessages.length > 0) {
-          console.log('Nouveaux messages GraphQL ajoutés dans Navbar:', newGraphqlMessages.length);
           const mergedMessages = [...prevMessages, ...newGraphqlMessages];
 
           // Trier par date de création
@@ -166,7 +139,6 @@ export default function Navbar() {
   // Calculer le nombre de messages non lus en temps réel
   const unreadMessagesCount = useMemo(() => {
     if (!user || !allMessages.length) {
-      console.log('📊 Navbar - Compteur: 0 (pas d\'utilisateur ou pas de messages)');
       return 0;
     }
 
@@ -177,20 +149,11 @@ export default function Navbar() {
       !msg.isRead
     );
 
-    const count = unreadMessages.length;
-    console.log('📊 Navbar - Compteur messages non lus:', {
-      total: allMessages.length,
-      unread: count,
-      userId: user.id,
-      lastUpdate: lastMessageUpdate
-    });
-
-    return count;
+    return unreadMessages.length;
   }, [allMessages, user, lastMessageUpdate]);
 
   // Mettre à jour le compteur affiché IMMÉDIATEMENT
   useEffect(() => {
-    console.log('🎯 Navbar - Mise à jour du badge IMMÉDIATE:', unreadMessagesCount);
     setUnreadCount(unreadMessagesCount);
   }, [unreadMessagesCount]);
 
@@ -198,7 +161,6 @@ export default function Navbar() {
   useEffect(() => {
     const handleMessageMarkedAsRead = (event) => {
       const { messageId } = event.detail;
-      console.log('📝 Navbar - Message marqué comme lu:', messageId);
 
       setAllMessages(prev =>
         prev.map(msg =>
@@ -208,12 +170,10 @@ export default function Navbar() {
 
       // Déclencher la mise à jour du compteur IMMÉDIATEMENT
       setLastMessageUpdate(Date.now());
-      console.log('🔄 Navbar - Compteur mis à jour après marquage comme lu');
     };
 
     const handleMultipleMessagesMarkedAsRead = (event) => {
       const { messageIds } = event.detail;
-      console.log('📝 Navbar - Plusieurs messages marqués comme lus:', messageIds.length);
 
       setAllMessages(prev =>
         prev.map(msg =>
@@ -223,7 +183,6 @@ export default function Navbar() {
 
       // Déclencher la mise à jour du compteur IMMÉDIATEMENT
       setLastMessageUpdate(Date.now());
-      console.log('🔄 Navbar - Compteur mis à jour après marquage multiple');
     };
 
     window.addEventListener('messageMarkedAsRead', handleMessageMarkedAsRead);

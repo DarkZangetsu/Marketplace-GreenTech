@@ -39,7 +39,6 @@ export const useWebSocket = (userId, onMessage) => {
 
   const connect = useCallback(() => {
     if (!userId || !mountedRef.current) {
-      console.warn('UserID manquant ou composant démonté');
       return;
     }
 
@@ -48,7 +47,6 @@ export const useWebSocket = (userId, onMessage) => {
 
     // Ne pas reconnecter si déjà en cours de connexion ou connecté
     if (ws.current && (ws.current.readyState === WebSocket.CONNECTING || ws.current.readyState === WebSocket.OPEN)) {
-      console.log('WebSocket déjà connecté ou en cours de connexion');
       return;
     }
 
@@ -75,13 +73,11 @@ export const useWebSocket = (userId, onMessage) => {
         wsUrl += `?token=${encodeURIComponent(token)}`;
       }
 
-      console.log('Tentative de connexion WebSocket:', wsUrl);
       ws.current = new WebSocket(wsUrl);
 
       // Timeout de connexion
       const connectionTimeout = setTimeout(() => {
         if (ws.current && ws.current.readyState === WebSocket.CONNECTING) {
-          console.error('Timeout de connexion WebSocket');
           ws.current.close();
           setError('Timeout de connexion');
           setConnectionState('error');
@@ -91,8 +87,7 @@ export const useWebSocket = (userId, onMessage) => {
       ws.current.onopen = (event) => {
         clearTimeout(connectionTimeout);
         if (!mountedRef.current) return;
-        
-        console.log('✅ WebSocket connecté avec succès', event);
+
         setConnectionState('connected');
         setError(null);
         reconnectAttemptsRef.current = 0;
@@ -106,30 +101,34 @@ export const useWebSocket = (userId, onMessage) => {
               if (ws.current && ws.current.readyState === WebSocket.OPEN) {
                 try {
                   ws.current.send(JSON.stringify({ type: 'ping' }));
-                  console.log('Ping envoyé');
-                  
+
                   // Timeout pour vérifier si on reçoit un pong
                   pongTimeoutRef.current = setTimeout(() => {
                     const timeSinceLastPong = Date.now() - lastPongRef.current;
                     if (timeSinceLastPong > 45000) { // 45 secondes sans pong
-                      console.error('Pas de pong reçu, connexion probablement fermée');
                       if (ws.current) {
                         ws.current.close(1006, 'Pas de pong reçu');
                       }
                     }
                   }, 15000); // Attendre 15 secondes pour le pong
-                  
+
                 } catch (err) {
-                  console.error('Erreur lors de l\'envoi du ping:', err);
+                  // Erreur silencieuse
                 }
               }
             }, 30000);
             
-            // Envoyer un ping initial
+            // Envoyer un ping initial et demander la liste des utilisateurs en ligne
             try {
               ws.current.send(JSON.stringify({ type: 'ping' }));
+              // Demander la liste des utilisateurs en ligne
+              setTimeout(() => {
+                if (ws.current && ws.current.readyState === WebSocket.OPEN) {
+                  ws.current.send(JSON.stringify({ type: 'get_online_users' }));
+                }
+              }, 1000);
             } catch (err) {
-              console.error('Erreur ping initial:', err);
+              // Erreur silencieuse
             }
           }
         }, 1000);
@@ -140,10 +139,8 @@ export const useWebSocket = (userId, onMessage) => {
         
         try {
           const data = JSON.parse(event.data);
-          console.log('Message WebSocket reçu:', data);
-          
+
           if (data.type === 'pong') {
-            console.log('Pong reçu - connexion stable');
             lastPongRef.current = Date.now();
             if (pongTimeoutRef.current) {
               clearTimeout(pongTimeoutRef.current);
@@ -151,23 +148,27 @@ export const useWebSocket = (userId, onMessage) => {
             }
             return;
           }
-          
+
           if (data.type === 'new_message' && onMessage) {
-            console.log('Nouveau message traité:', data.message);
             onMessage(data.message);
           }
 
           // Gestion des notifications de statut utilisateur
           if (data.type === 'user_status' && data.user_id && data.status) {
-            console.log('Statut utilisateur mis à jour:', data.user_id, data.status);
             // Vous pouvez émettre un événement personnalisé ou utiliser un callback
             window.dispatchEvent(new CustomEvent('userStatusChange', {
               detail: { userId: data.user_id, status: data.status }
             }));
           }
-          
+
+          // Gestion de la liste des utilisateurs en ligne
+          if (data.type === 'online_users_list' && data.online_users) {
+            window.dispatchEvent(new CustomEvent('onlineUsersList', {
+              detail: { onlineUsers: data.online_users, count: data.count }
+            }));
+          }
+
         } catch (error) {
-          console.error('Erreur lors du parsing du message WebSocket:', error, event.data);
           setError(`Erreur de parsing: ${error.message}`);
         }
       };
@@ -178,23 +179,20 @@ export const useWebSocket = (userId, onMessage) => {
         
         if (!mountedRef.current) return;
         
-        console.log('WebSocket fermé:', event.code, event.reason);
         setConnectionState('disconnected');
-        
+
         // Codes d'erreur spécifiques
         if (event.code === 4001) {
           setError('Authentification échouée');
-          console.error('Authentification WebSocket échouée');
           return;
         }
-        
+
         if (event.code === 4000) {
           setError('Erreur de connexion du serveur');
         }
 
         // Si la fermeture est propre, ne pas reconnecter
         if (event.code === 1000 || event.code === 1001) {
-          console.log('Connexion fermée proprement');
           setError(null);
           return;
         }

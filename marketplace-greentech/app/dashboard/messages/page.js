@@ -58,7 +58,6 @@ export default function MessagesPage() {
 
   const [sendMessage, { loading: sendingMessage }] = useMutation(SEND_MESSAGE, {
   onCompleted: (data) => {
-    console.log('Message envoyé avec succès:', data);
     setNewMessage('');
     setSelectedFile(null);
     
@@ -154,51 +153,54 @@ export default function MessagesPage() {
   useEffect(() => {
     const handleUserStatusChange = (event) => {
       const { userId, status } = event.detail;
-      console.log('Statut utilisateur changé:', userId, status);
-      
+
       setOnlineUsers(prev => {
         const newOnlineUsers = new Set(prev);
+        const userIdString = String(userId);
         if (status === 'online') {
-          newOnlineUsers.add(userId);
+          newOnlineUsers.add(userIdString);
         } else {
-          newOnlineUsers.delete(userId);
+          newOnlineUsers.delete(userIdString);
         }
         return newOnlineUsers;
       });
     };
 
+    const handleOnlineUsersList = (event) => {
+      const { onlineUsers } = event.detail;
+      setOnlineUsers(new Set(onlineUsers));
+    };
+
     window.addEventListener('userStatusChange', handleUserStatusChange);
-    
+    window.addEventListener('onlineUsersList', handleOnlineUsersList);
+
     return () => {
       window.removeEventListener('userStatusChange', handleUserStatusChange);
+      window.removeEventListener('onlineUsersList', handleOnlineUsersList);
     };
   }, []);
 
   // Gestionnaire de nouveaux messages WebSocket amélioré
   const handleNewMessage = useCallback((messageData) => {
-  console.log('Nouveau message reçu via WebSocket:', messageData);
-
   // Extraction correcte du message selon la structure reçue
   let message = messageData;
-  
+
   // Si c'est une mutation SendMessage, extraire le message
   if (messageData?.sendMessage) {
     message = messageData.sendMessage;
   }
-  
+
   // Si c'est wrappé dans messageObj
   if (messageData?.messageObj) {
     message = messageData.messageObj;
   }
 
   if (!message || !message.id) {
-    console.warn('Message invalide reçu:', messageData);
     return;
   }
 
   // Vérifier que toutes les propriétés nécessaires sont présentes
   if (!message.sender || !message.receiver || !message.listing) {
-    console.warn('Message avec propriétés manquantes:', message);
     return;
   }
 
@@ -206,18 +208,16 @@ export default function MessagesPage() {
     // Vérifier si le message existe déjà
     const messageExists = prev.some(msg => msg?.id === message.id);
     if (messageExists) {
-      console.log('Message déjà existant, ignoré:', message.id);
       return prev;
     }
 
-    console.log('Ajout du nouveau message à l\'état local');
     const newMessages = [...prev, message];
-    
+
     // Forcer la mise à jour des conversations
     setTimeout(() => {
       setLastMessageUpdate(Date.now());
     }, 0);
-    
+
     return newMessages;
   });
 
@@ -253,30 +253,27 @@ export default function MessagesPage() {
   // Synchroniser les messages GraphQL avec l'état local
   useEffect(() => {
   if (messagesData?.myMessages) {
-    console.log('Synchronisation des messages GraphQL:', messagesData.myMessages.length);
-    
     setAllMessages(prevMessages => {
       const graphqlMessages = messagesData.myMessages.filter(msg => msg && msg.id);
       const existingMessageIds = new Set(prevMessages.map(msg => msg?.id).filter(Boolean));
-      
+
       // Ajouter uniquement les nouveaux messages GraphQL
       const newGraphqlMessages = graphqlMessages.filter(msg => !existingMessageIds.has(msg.id));
-      
+
       if (newGraphqlMessages.length > 0) {
-        console.log('Nouveaux messages GraphQL ajoutés:', newGraphqlMessages.length);
         const mergedMessages = [...prevMessages, ...newGraphqlMessages];
-        
+
         // Trier par date de création
         const sortedMessages = mergedMessages.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
-        
+
         // Déclencher la mise à jour des conversations
         setTimeout(() => {
           setLastMessageUpdate(Date.now());
         }, 0);
-        
+
         return sortedMessages;
       }
-      
+
       return prevMessages;
     });
   }
@@ -285,23 +282,21 @@ export default function MessagesPage() {
   // Synchroniser les messages de conversation
   useEffect(() => {
     if (conversationData?.conversation) {
-      console.log('Mise à jour des messages de conversation:', conversationData.conversation.length);
-      
       const conversationMessages = conversationData.conversation.filter(msg => msg && msg.id);
-      
+
       setAllMessages(prevMessages => {
         const mergedMessages = [...prevMessages];
-        
+
         // Ajouter les messages de conversation qui ne sont pas déjà présents
         conversationMessages.forEach(convMsg => {
           if (convMsg && convMsg.id && !mergedMessages.some(msg => msg?.id === convMsg.id)) {
             mergedMessages.push(convMsg);
           }
         });
-        
+
         return mergedMessages.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
       });
-      
+
       setTimeout(scrollToBottom, 100);
     }
   }, [conversationData?.conversation]);
@@ -309,25 +304,21 @@ export default function MessagesPage() {
   // Grouper les messages en conversations - Optimisé avec useMemo
   const conversations = useMemo(() => {
   if (!currentUser || !allMessages.length) {
-    console.log('Pas de currentUser ou de messages pour grouper');
     return [];
   }
 
-  console.log('Regroupement des conversations avec', allMessages.length, 'messages');
-  
   const conversationMap = {};
 
   allMessages.forEach(message => {
     // Vérification robuste des propriétés du message
-    if (!message || 
-        !message.sender || 
-        !message.receiver || 
-        !message.listing || 
+    if (!message ||
+        !message.sender ||
+        !message.receiver ||
+        !message.listing ||
         !message.id ||
         !message.sender.id ||
         !message.receiver.id ||
         !message.listing.id) {
-      console.warn('Message avec données manquantes ignoré:', message);
       return;
     }
 
@@ -369,9 +360,13 @@ export default function MessagesPage() {
     new Date(b.lastMessage.createdAt) - new Date(a.lastMessage.createdAt)
   );
 
-  console.log('Conversations créées:', sortedConversations.length);
   return sortedConversations;
 }, [allMessages, currentUser, lastMessageUpdate]);
+
+  // Fonction pour obtenir tous les utilisateurs en ligne (système réel WebSocket)
+  const getAllOnlineUsers = useCallback(() => {
+    return onlineUsers;
+  }, [onlineUsers]);
 
   // Filtrer les conversations selon la recherche
   const filteredConversations = useMemo(() => {
@@ -431,7 +426,7 @@ export default function MessagesPage() {
       }));
 
     } catch (error) {
-      console.error('Erreur lors du marquage comme lu:', error);
+      // Erreur silencieuse
     }
   };
 
@@ -440,8 +435,6 @@ export default function MessagesPage() {
     if (!messageIds || messageIds.length === 0) {
       return;
     }
-
-    console.log('Marquage de plusieurs messages comme lus:', messageIds.length);
 
     // Mettre à jour l'état local immédiatement pour tous les messages
     setAllMessages(prev =>
@@ -460,7 +453,6 @@ export default function MessagesPage() {
           variables: { messageId }
         });
       } catch (error) {
-        console.error('Erreur lors du marquage du message:', messageId, error);
         // En cas d'erreur, remettre le message comme non lu dans l'état local
         setAllMessages(prev =>
           prev.map(msg =>
@@ -485,8 +477,6 @@ export default function MessagesPage() {
       return;
     }
 
-    console.log('Marquage des messages comme lus pour la conversation:', conversation.id);
-
     // Récupérer tous les messages non lus de cette conversation
     const unreadMessages = allMessages.filter(message => {
       if (!message || !message.receiver || !message.sender || !message.listing) {
@@ -500,8 +490,6 @@ export default function MessagesPage() {
         message.listing.id === conversation.listing?.id
       );
     });
-
-    console.log('Messages non lus trouvés:', unreadMessages.length);
 
     if (unreadMessages.length > 0) {
       // Utiliser la fonction optimisée pour marquer plusieurs messages
@@ -540,7 +528,6 @@ export default function MessagesPage() {
     if (listingIdParam && conversations.length > 0) {
       const conversation = conversations.find(c => c?.listing?.id === listingIdParam);
       if (conversation && (!activeConversation || activeConversation.id !== conversation.id)) {
-        console.log('Activation de la conversation depuis URL:', conversation.id);
         setActiveConversation(conversation);
         setShowMobileList(false);
 
@@ -550,7 +537,6 @@ export default function MessagesPage() {
         }, 800);
       }
     } else if (conversations.length > 0 && !activeConversation) {
-      console.log('Activation de la première conversation');
       const firstConversation = conversations[0];
       setActiveConversation(firstConversation);
 
@@ -566,8 +552,6 @@ export default function MessagesPage() {
     e.preventDefault();
 
     if ((!newMessage.trim() && !selectedFile) || !activeConversation || sendingMessage || !activeConversation.otherUser || !activeConversation.listing) return;
-
-    console.log('Envoi du message:', newMessage);
 
     try {
       const variables = {
@@ -601,7 +585,7 @@ export default function MessagesPage() {
       setNewMessage('');
       setSelectedFile(null);
     } catch (error) {
-      console.error('Erreur lors de l\'envoi du message:', error);
+      // Erreur silencieuse
     }
   };
 
@@ -632,7 +616,6 @@ export default function MessagesPage() {
     });
 
     if (unreadVisibleMessages.length > 0) {
-      console.log('Marquage automatique des messages visibles:', unreadVisibleMessages.length);
       handleMarkMultipleAsRead(unreadVisibleMessages);
     }
   }, [activeConversation, currentUser, visibleMessages, allMessages, handleMarkMultipleAsRead]);
@@ -651,11 +634,9 @@ export default function MessagesPage() {
   // Gérer le clic sur une conversation
   const handleConversationClick = async (conversation) => {
     if (!conversation || !conversation.otherUser) {
-      console.warn('Tentative de clic sur une conversation invalide:', conversation);
       return;
     }
 
-    console.log('Clic sur conversation:', conversation.id);
     setActiveConversation(conversation);
     setShowMobileList(false);
 
@@ -799,23 +780,41 @@ export default function MessagesPage() {
                               <User size={20} className="text-gray-500" />
                             )}
                           </div>
-                          {/* <div className="absolute -bottom-1 -right-1">
-                            <StatusIndicator 
-                              isOnline={onlineUsers && onlineUsers.has && onlineUsers.has(String(conversation.otherUser.id))} 
-                              userId={conversation.otherUser.id}
-                              onlineUsers={onlineUsers}
-                            />
-                          </div> */}
+                          {/* Badge de statut en ligne */}
+                          <div className="absolute -bottom-1 -right-1">
+                            <div className={`w-3.5 h-3.5 rounded-full border-2 border-white ${
+                              getAllOnlineUsers()?.has?.(String(conversation.otherUser.id))
+                                ? 'bg-green-500 animate-pulse'
+                                : 'bg-gray-400'
+                            }`} />
+                          </div>
                         </div>
   
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center justify-between mb-1">
-                            <h3 className="font-medium text-gray-900 truncate flex items-center">
-                              {getFullName(conversation.otherUser)}
-                              {conversation.unreadCount > 0 && (
-                                <span className="ml-2 w-2 h-2 bg-green-500 rounded-full"></span>
-                              )}
-                            </h3>
+                            <div className="flex flex-col min-w-0 flex-1">
+                              <h3 className="font-medium text-gray-900 truncate flex items-center">
+                                {getFullName(conversation.otherUser)}
+                                {conversation.unreadCount > 0 && (
+                                  <span className="ml-2 w-2 h-2 bg-green-500 rounded-full"></span>
+                                )}
+                              </h3>
+                              {/* <div className="flex items-center text-xs text-gray-500">
+                                {(() => {
+                                  const userId = String(conversation.otherUser.id);
+                                  const allOnlineUsers = getAllOnlineUsers();
+                                  const isOnline = allOnlineUsers?.has?.(userId);
+                                  return (
+                                    <>
+                                      <div className={`w-1.5 h-1.5 rounded-full mr-1.5 ${
+                                        isOnline ? 'bg-green-500 animate-pulse' : 'bg-gray-400'
+                                      }`} />
+                                      {isOnline ? 'En ligne' : 'Hors ligne'}
+                                    </>
+                                  );
+                                })()}
+                              </div> */}
+                            </div>
                             <span className="text-xs text-gray-500 flex-shrink-0">
                               {conversation.lastMessage && formatDate(conversation.lastMessage.createdAt)}
                             </span>
@@ -879,26 +878,29 @@ export default function MessagesPage() {
                           <User size={18} className="text-gray-500" />
                         )}
                       </div>
+                      {/* Badge de statut en ligne */}
                       {/* <div className="absolute -bottom-1 -right-1">
-                        <StatusIndicator 
-                          isOnline={onlineUsers && onlineUsers.has && onlineUsers.has(String(activeConversation.otherUser.id))} 
-                          userId={activeConversation.otherUser.id}
-                          onlineUsers={onlineUsers}
-                        />
+                        <div className={`w-3 h-3 rounded-full border-2 border-white ${
+                          getAllOnlineUsers()?.has?.(String(activeConversation.otherUser.id))
+                            ? 'bg-green-500 animate-pulse'
+                            : 'bg-gray-400'
+                        }`} />
                       </div> */}
                     </div>
   
                     <div>
                       <h3 className="font-medium text-gray-900">{getFullName(activeConversation.otherUser)}</h3>
-                      {/* {(() => {
-                        const isOtherUserOnline = onlineUsers?.has?.(String(activeConversation.otherUser.id));
+                      {(() => {
+                        const userId = String(activeConversation.otherUser.id);
+                        const allOnlineUsers = getAllOnlineUsers();
+                        const isOtherUserOnline = allOnlineUsers?.has?.(userId);
                         return (
                           <div className="flex items-center text-xs text-gray-500">
-                            <div className={`w-2 h-2 rounded-full mr-2 ${isOtherUserOnline ? 'bg-green-500' : 'bg-gray-400'}`} />
+                            <div className={`w-2 h-2 rounded-full mr-2 ${isOtherUserOnline ? 'bg-green-500 animate-pulse' : 'bg-gray-400'}`} />
                             {isOtherUserOnline ? 'En ligne' : 'Hors ligne'}
                           </div>
                         );
-                      })()} */}
+                      })()}
                     </div>
                   </div>
   

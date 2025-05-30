@@ -61,8 +61,6 @@ export default function DashboardPage() {
   useEffect(() => {
     const token = localStorage.getItem('token');
     const userData = localStorage.getItem('user');
-
-    console.log("eto tsika zao :", userData)
     
     if (!token) {
       router.push('/auth/login');

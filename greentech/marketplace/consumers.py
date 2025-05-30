@@ -8,38 +8,64 @@ import logging
 logger = logging.getLogger(__name__)
 User = get_user_model()
 
+# Set global pour tracker les utilisateurs connectés
+connected_users = set()
+
 class MessageConsumer(AsyncWebsocketConsumer):
-    
-    async def connect(self):
+
+    async def broadcast_user_status(self, user_id, status):
         """
-        Connexion avec debug détaillé
+        Diffuser le changement de statut d'un utilisateur à tous les autres utilisateurs connectés
         """
         try:
-            print(f"=== CONNEXION WEBSOCKET ===")
-            print(f"Scope: {self.scope}")
-            print(f"URL route kwargs: {self.scope.get('url_route', {}).get('kwargs', {})}")
-            
+            # Diffuser à tous les utilisateurs connectés
+            for connected_user_id in connected_users:
+                if connected_user_id != user_id:  # Ne pas envoyer à soi-même
+                    await self.channel_layer.group_send(
+                        f'user_{connected_user_id}',
+                        {
+                            'type': 'user_status_change',
+                            'user_id': str(user_id),
+                            'status': status
+                        }
+                    )
+        except Exception:
+            pass
+
+    async def user_status_change(self, event):
+        """
+        Gestionnaire pour envoyer les changements de statut via WebSocket
+        """
+        await self.send(text_data=json.dumps({
+            'type': 'user_status',
+            'user_id': event['user_id'],
+            'status': event['status']
+        }))
+
+    async def connect(self):
+        """
+        Connexion WebSocket
+        """
+        try:
             # Récupérer l'user_id depuis l'URL
             self.user_id = self.scope['url_route']['kwargs']['user_id']
             self.room_group_name = f'user_{self.user_id}'
-            
-            print(f"User ID: {self.user_id}")
-            print(f"Room group: {self.room_group_name}")
-            
+
             # Accepter la connexion
             await self.accept()
-            print(f"✓ WebSocket accepté pour user {self.user_id}")
-            
+
             # Ajouter au groupe
             try:
                 await self.channel_layer.group_add(
                     self.room_group_name,
                     self.channel_name
                 )
-                print(f"✓ Ajouté au groupe: {self.room_group_name}")
-            except Exception as group_error:
-                print(f"❌ Erreur ajout au groupe: {group_error}")
-            
+            except Exception:
+                pass
+
+            # Ajouter l'utilisateur aux connectés
+            connected_users.add(str(self.user_id))
+
             # Message de confirmation
             await self.send(text_data=json.dumps({
                 'type': 'connected',
@@ -47,16 +73,13 @@ class MessageConsumer(AsyncWebsocketConsumer):
                 'message': 'Connexion WebSocket établie avec succès',
                 'room_group': self.room_group_name
             }))
-            
-            print(f"✓ Message de confirmation envoyé")
-            
-        except KeyError as e:
-            print(f"❌ Paramètre manquant dans l'URL: {e}")
+
+            # Diffuser le statut "online" aux autres utilisateurs
+            await self.broadcast_user_status(str(self.user_id), 'online')
+
+        except KeyError:
             await self.close(code=4000)
-        except Exception as e:
-            print(f"❌ Erreur connexion WebSocket: {e}")
-            import traceback
-            traceback.print_exc()
+        except Exception:
             try:
                 await self.close(code=4000)
             except:
@@ -64,43 +87,44 @@ class MessageConsumer(AsyncWebsocketConsumer):
 
     async def disconnect(self, close_code):
         """
-        Déconnexion avec debug
+        Déconnexion WebSocket
         """
         try:
-            print(f"=== DÉCONNEXION WEBSOCKET ===")
-            print(f"User: {getattr(self, 'user_id', 'Unknown')}")
-            print(f"Code: {close_code}")
-            
+            # Retirer l'utilisateur des connectés et diffuser le statut offline
+            if hasattr(self, 'user_id'):
+                user_id_str = str(self.user_id)
+                if user_id_str in connected_users:
+                    connected_users.remove(user_id_str)
+
+                    # Diffuser le statut "offline" aux autres utilisateurs
+                    await self.broadcast_user_status(user_id_str, 'offline')
+
             if hasattr(self, 'room_group_name') and hasattr(self, 'channel_layer'):
                 try:
                     await self.channel_layer.group_discard(
                         self.room_group_name,
                         self.channel_name
                     )
-                    print(f"✓ Retiré du groupe: {self.room_group_name}")
-                except Exception as e:
-                    print(f"❌ Erreur retrait du groupe: {e}")
-                    
-        except Exception as e:
-            print(f"❌ Erreur déconnexion: {e}")
+                except Exception:
+                    pass
+
+        except Exception:
+            pass
 
     async def receive(self, text_data):
         """
-        Réception des messages avec debug
+        Réception des messages WebSocket
         """
         try:
             data = json.loads(text_data)
             message_type = data.get('type', 'unknown')
-            
-            print(f"📨 Message reçu de user {self.user_id}: {message_type}")
-            
+
             if message_type == 'ping':
                 await self.send(text_data=json.dumps({
                     'type': 'pong',
                     'timestamp': asyncio.get_event_loop().time()
                 }))
-                print(f"🏓 Pong envoyé à user {self.user_id}")
-                
+
             elif message_type == 'test':
                 # Test simple
                 await self.send(text_data=json.dumps({
@@ -108,7 +132,15 @@ class MessageConsumer(AsyncWebsocketConsumer):
                     'message': f'Test réussi pour user {self.user_id}',
                     'timestamp': asyncio.get_event_loop().time()
                 }))
-                
+
+            elif message_type == 'get_online_users':
+                # Envoyer la liste des utilisateurs en ligne
+                await self.send(text_data=json.dumps({
+                    'type': 'online_users_list',
+                    'online_users': list(connected_users),
+                    'count': len(connected_users)
+                }))
+
             else:
                 # Echo générique
                 await self.send(text_data=json.dumps({
@@ -116,15 +148,12 @@ class MessageConsumer(AsyncWebsocketConsumer):
                     'original': data,
                     'user_id': str(self.user_id)
                 }))
-                
-        except json.JSONDecodeError as e:
-            print(f"❌ Erreur JSON: {e}")
+
+        except json.JSONDecodeError:
             await self.send(text_data=json.dumps({
                 'type': 'error',
                 'message': 'Format JSON invalide'
             }))
-            
-        except Exception as e:
-            print(f"❌ Erreur réception message: {e}")
-            import traceback
-            traceback.print_exc()
+
+        except Exception:
+            pass
