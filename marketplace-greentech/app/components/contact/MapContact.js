@@ -203,46 +203,96 @@ export default function MapContact() {
 
   return (
     <div>
-      {/* Map Section */}
-      <section className="py-8 relative" style={{ zIndex: 1 }}>
-        <div className="container mx-auto px-4 relative" style={{ zIndex: 1 }}>
-          <div className="mb-6 text-center">
-            <h2 className="text-3xl font-bold text-gray-800 mb-2">
-              Localisation
+      {/* Map Section - Modern Design */}
+      <section className="relative py-12 md:py-16 lg:py-20 bg-gradient-to-br from-white via-gray-50 to-green-50 overflow-hidden" style={{ zIndex: 1 }}>
+        {/* Background Elements */}
+        <div className="absolute inset-0">
+          <div className="absolute top-10 left-10 w-32 h-32 md:w-48 md:h-48 lg:w-64 lg:h-64 bg-green-100 rounded-full mix-blend-multiply filter blur-xl opacity-40"></div>
+          <div className="absolute bottom-10 right-10 w-32 h-32 md:w-48 md:h-48 lg:w-64 lg:h-64 bg-emerald-100 rounded-full mix-blend-multiply filter blur-xl opacity-40"></div>
+        </div>
+
+        <div className="relative container mx-auto px-4" style={{ zIndex: 1 }}>
+          {/* Header */}
+          <div className="text-center mb-8 lg:mb-12">
+            <div className="inline-flex items-center px-3 py-1.5 lg:px-4 lg:py-2 bg-green-100 text-green-800 rounded-full text-xs lg:text-sm font-medium mb-4 lg:mb-6">
+              <svg className="w-3 h-3 lg:w-4 lg:h-4 mr-2" fill="currentColor" viewBox="0 0 24 24">
+                <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+              </svg>
+              Notre Localisation
+            </div>
+
+            <h2 className="text-2xl sm:text-3xl md:text-4xl lg:text-5xl font-bold text-gray-900 mb-4 lg:mb-6">
+              Où nous
+              <span className="bg-gradient-to-r from-green-600 to-emerald-600 bg-clip-text text-transparent"> trouver</span>
             </h2>
-            <p className="text-green-600 font-medium">
-              Antarandolo, Fianarantsoa - Madagascar
+
+            <p className="text-base md:text-lg lg:text-xl text-gray-600 max-w-3xl mx-auto leading-relaxed">
+              Visitez-nous à Antarandolo, Fianarantsoa pour découvrir notre plateforme de réutilisation de matériaux.
             </p>
           </div>
 
-          <div className="bg-white rounded-lg shadow-lg overflow-hidden relative" style={{ zIndex: 1 }}>
-            <div
-              ref={mapRef}
-              className="h-96 w-full relative"
-              style={{ minHeight: '400px', zIndex: 1 }}
-            >
-              {/* Fallback content while map loads */}
-              <div className="absolute inset-0 flex items-center justify-center bg-gray-100">
-                <div className="text-center">
-                  <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-green-600 mx-auto mb-2"></div>
-                  <p className="text-gray-500 text-sm">Chargement de la carte...</p>
+          {/* Map Container */}
+          <div className="group relative max-w-6xl mx-auto">
+            <div className="absolute inset-0 bg-gradient-to-r from-green-400 to-emerald-500 rounded-2xl lg:rounded-3xl blur-xl opacity-0 group-hover:opacity-20 transition-opacity duration-500"></div>
+            <div className="relative bg-white/80 backdrop-blur-sm rounded-xl lg:rounded-3xl border border-white/50 shadow-2xl overflow-hidden" style={{ zIndex: 1 }}>
+
+              {/* Map */}
+              <div
+                ref={mapRef}
+                className="h-64 sm:h-80 lg:h-96 xl:h-[500px] w-full relative"
+                style={{ minHeight: '300px', zIndex: 1 }}
+              >
+                {/* Fallback content while map loads */}
+                <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-green-50 to-emerald-50">
+                  <div className="text-center">
+                    <div className="animate-spin rounded-full h-8 w-8 lg:h-12 lg:w-12 border-b-2 border-green-600 mx-auto mb-4"></div>
+                    <p className="text-gray-600 text-sm lg:text-base">Chargement de la carte...</p>
+                  </div>
                 </div>
               </div>
-            </div>
 
-            {/* Info panel */}
-            <div className="p-6 bg-gradient-to-r from-green-50 to-blue-50">
-              <div className="grid md:grid-cols-2 gap-6">
-                <div>
-                  <h3 className="text-lg font-semibold text-green-600 mb-3 flex items-center">
-                    GreenTech Marketplace
-                  </h3>
-                  <div className="space-y-2 text-sm text-gray-600">
-                    <p><strong>Adresse:</strong> Antarandolo, Fianarantsoa</p>
-                    <p><strong>Région:</strong> Haute Matsiatra</p>
-                    <p><strong>Code postal:</strong> 301</p>
-                    <p><strong>Pays:</strong> Madagascar 🇲🇬</p>
+              {/* Info Panel */}
+              <div className="p-4 lg:p-8 bg-gradient-to-r from-green-50/80 to-emerald-50/80 backdrop-blur-sm">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6 lg:gap-8">
+
+                  {/* Location Info */}
+                  <div className="space-y-4">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-10 h-10 bg-gradient-to-r from-green-500 to-emerald-500 rounded-xl flex items-center justify-center">
+                        <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
+                          <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+                        </svg>
+                      </div>
+                      <h3 className="text-lg lg:text-xl font-bold text-gray-900">GreenTech Marketplace</h3>
+                    </div>
+
+                    <div className="space-y-2 text-sm lg:text-base text-gray-600 ml-13">
+                      <p><span className="font-semibold text-gray-800">Adresse:</span> Antarandolo, Fianarantsoa</p>
+                      <p><span className="font-semibold text-gray-800">Région:</span> Haute Matsiatra</p>
+                      <p><span className="font-semibold text-gray-800">Code postal:</span> 301</p>
+                      <p><span className="font-semibold text-gray-800">Pays:</span> Madagascar 🇲🇬</p>
+                    </div>
                   </div>
+
+                  {/* Additional Info */}
+                  <div className="space-y-4">
+                    <div className="flex items-center space-x-3">
+                      <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-cyan-500 rounded-xl flex items-center justify-center">
+                        <svg className="w-5 h-5 text-white" fill="currentColor" viewBox="0 0 24 24">
+                          <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z"/>
+                        </svg>
+                      </div>
+                      <h4 className="text-lg lg:text-xl font-bold text-gray-900">Zone de Service</h4>
+                    </div>
+
+                    <div className="space-y-2 text-sm lg:text-base text-gray-600 ml-13">
+                      <p><span className="font-semibold text-gray-800">Rayon:</span> 2 km autour de notre localisation</p>
+                      <p><span className="font-semibold text-gray-800">Couverture:</span> Fianarantsoa et environs</p>
+                      <p><span className="font-semibold text-gray-800">Transport:</span> Accessible par route principale</p>
+                      <p><span className="font-semibold text-gray-800">Proximité:</span> Centre-ville, université, gare</p>
+                    </div>
+                  </div>
+
                 </div>
               </div>
             </div>
