@@ -40,7 +40,6 @@ export default function AdminLayout({ children }) {
       href: '/admin/users',
       icon: Users,
       current: pathname === '/admin/users',
-      badge: '12' // Exemple de badge
     },
     {
       name: 'Annonces',
@@ -218,8 +217,8 @@ export default function AdminLayout({ children }) {
                       <span className="flex-1">{item.name}</span>
                       {item.badge && (
                         <span className={`px-2 py-1 text-xs font-medium rounded-full ${
-                          item.badgeColor === 'bg-red-500' 
-                            ? 'bg-red-500 text-white' 
+                          item.badgeColor === 'bg-red-500'
+                            ? 'bg-red-500 text-white'
                             : 'bg-blue-900/40 text-blue-300'
                         }`}>
                           {item.badge}
@@ -267,6 +266,14 @@ export default function AdminLayout({ children }) {
               {/* User dropdown */}
               {userMenuOpen && sidebarOpen && (
                 <div className="absolute bottom-full mb-2 left-0 right-0 bg-slate-800 rounded-xl shadow-lg border border-slate-700 py-2">
+                  <Link
+                    href="/"
+                    className="w-full flex items-center px-4 py-2 text-sm text-slate-300 hover:bg-slate-700/50 hover:text-white transition-colors"
+                  >
+                    <Home className="w-4 h-4 mr-3" />
+                    Retour à l'accueil
+                  </Link>
+                  <div className="border-t border-slate-700 my-1"></div>
                   <button
                     onClick={handleLogoutClick}
                     className="w-full flex items-center px-4 py-2 text-sm text-red-400 hover:bg-red-900/20"
