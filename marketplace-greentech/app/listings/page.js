@@ -11,6 +11,19 @@ import { conditions, locations } from '../components/constants/CreateListingCons
 export default function ListingsPage() {
   const [viewMode, setViewMode] = useState('grid');
   const [showFilters, setShowFilters] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+
+  // Hook pour détecter la taille d'écran
+  useEffect(() => {
+    const checkIsMobile = () => {
+      setIsMobile(window.innerWidth < 640);
+    };
+
+    checkIsMobile();
+    window.addEventListener('resize', checkIsMobile);
+
+    return () => window.removeEventListener('resize', checkIsMobile);
+  }, []);
   
   // État de recherche complètement séparé et dynamique
   const [searchTerm, setSearchTerm] = useState('');
@@ -144,7 +157,6 @@ export default function ListingsPage() {
   }, [filteredAndSortedListings, currentPage, itemsPerPage]);
 
   const totalPages = Math.ceil(filteredAndSortedListings.length / itemsPerPage);
-  const hasMore = currentPage < totalPages;
 
   // Compter les filtres actifs (séparément)
   const activeFiltersCount = useMemo(() => {
@@ -552,26 +564,21 @@ export default function ListingsPage() {
                   ))}
                 </div>
 
-                {/* Load more button */}
-                {hasMore && (
-                  <div className="mt-8 text-center">
-                    <button
-                      onClick={() => setCurrentPage(prev => prev + 1)}
-                      disabled={loading}
-                      className="inline-flex items-center px-6 py-3 border border-transparent text-sm font-medium rounded-lg text-white bg-green-600 hover:bg-green-700 focus:outline-none focus:ring-2 focus:ring-offset-2 focus:ring-green-500 disabled:opacity-50 transition-colors"
-                    >
-                      {loading ? (
-                        <div className="animate-spin rounded-full h-5 w-5 border-b-2 border-white"></div>
-                      ) : (
-                        'Charger plus d\'annonces'
-                      )}
-                    </button>
-                  </div>
-                )}
+
 
                 {/* Pagination */}
                 {totalPages > 1 && (
-                  <div className="mt-8 flex justify-center items-center gap-1 sm:gap-2">
+                  <div className="mt-8">
+                    {/* Indicateur de page pour mobile */}
+                    {isMobile && (
+                      <div className="text-center mb-4">
+                        <span className="text-sm text-gray-600">
+                          Page {currentPage} sur {totalPages}
+                        </span>
+                      </div>
+                    )}
+
+                    <div className="flex justify-center items-center gap-1 sm:gap-2">
                     <button
                       onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
                       disabled={currentPage === 1}
@@ -581,7 +588,7 @@ export default function ListingsPage() {
                     </button>
                     
                     {/* Pagination intelligente pour mobile */}
-                    {typeof window !== 'undefined' && window.innerWidth < 640 ? (
+                    {isMobile ? (
                       <>
                         {currentPage > 2 && (
                           <>
@@ -591,26 +598,26 @@ export default function ListingsPage() {
                             >
                               1
                             </button>
-                            {currentPage > 3 && <span className="px-2">...</span>}
+                            {currentPage > 3 && <span className="px-2 text-gray-500">...</span>}
                           </>
                         )}
-                        
+
                         {Array.from({ length: 3 }, (_, i) => currentPage - 1 + i)
                           .filter(page => page >= 1 && page <= totalPages)
                           .map(page => (
                             <button
                               key={page}
                               onClick={() => setCurrentPage(page)}
-                              className={`px-3 py-2 rounded-lg border ${page === currentPage ? 'bg-green-600 text-white border-green-600' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-100'}`}
+                              className={`px-3 py-2 rounded-lg border transition-colors ${page === currentPage ? 'bg-green-600 text-white border-green-600' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-100'}`}
                             >
                               {page}
                             </button>
                           ))
                         }
-                        
+
                         {currentPage < totalPages - 1 && (
                           <>
-                            {currentPage < totalPages - 2 && <span className="px-2">...</span>}
+                            {currentPage < totalPages - 2 && <span className="px-2 text-gray-500">...</span>}
                             <button
                               onClick={() => setCurrentPage(totalPages)}
                               className="px-3 py-2 rounded-lg border bg-white text-gray-700 border-gray-300 hover:bg-gray-100"
@@ -620,7 +627,8 @@ export default function ListingsPage() {
                           </>
                         )}
                       </>
-                    ) : (
+                    ) : totalPages <= 10 ? (
+                      // Desktop : afficher toutes les pages si <= 10
                       Array.from({ length: totalPages }, (_, i) => i + 1).map(page => (
                         <button
                           key={page}
@@ -630,6 +638,46 @@ export default function ListingsPage() {
                           {page}
                         </button>
                       ))
+                    ) : (
+                      // Desktop : pagination intelligente si > 10 pages
+                      <>
+                        {currentPage > 3 && (
+                          <>
+                            <button
+                              onClick={() => setCurrentPage(1)}
+                              className="px-3 py-2 rounded-lg border bg-white text-gray-700 border-gray-300 hover:bg-gray-100"
+                            >
+                              1
+                            </button>
+                            {currentPage > 4 && <span className="px-2 text-gray-500">...</span>}
+                          </>
+                        )}
+
+                        {Array.from({ length: 5 }, (_, i) => currentPage - 2 + i)
+                          .filter(page => page >= 1 && page <= totalPages)
+                          .map(page => (
+                            <button
+                              key={page}
+                              onClick={() => setCurrentPage(page)}
+                              className={`px-3 py-2 rounded-lg border transition-colors ${page === currentPage ? 'bg-green-600 text-white border-green-600' : 'bg-white text-gray-700 border-gray-300 hover:bg-gray-100'}`}
+                            >
+                              {page}
+                            </button>
+                          ))
+                        }
+
+                        {currentPage < totalPages - 2 && (
+                          <>
+                            {currentPage < totalPages - 3 && <span className="px-2 text-gray-500">...</span>}
+                            <button
+                              onClick={() => setCurrentPage(totalPages)}
+                              className="px-3 py-2 rounded-lg border bg-white text-gray-700 border-gray-300 hover:bg-gray-100"
+                            >
+                              {totalPages}
+                            </button>
+                          </>
+                        )}
+                      </>
                     )}
                     
                     <button
@@ -639,6 +687,7 @@ export default function ListingsPage() {
                     >
                       <ChevronRight size={18} />
                     </button>
+                    </div>
                   </div>
                 )}
               </>
