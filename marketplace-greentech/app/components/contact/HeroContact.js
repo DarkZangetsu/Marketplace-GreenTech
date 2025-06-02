@@ -13,7 +13,7 @@ export default function HeroContact() {
           <div className="absolute -bottom-4 left-20 w-32 h-32 md:w-48 md:h-48 bg-green-300/20 rounded-full mix-blend-multiply filter blur-xl opacity-30 animate-blob animation-delay-4000"></div>
         </div>
 
-        <div className="relative container mx-auto px-4 py-12 md:py-16 lg:py-20">
+        <div className="relative container mx-auto px-4 pt-20 pb-12 md:pt-24 md:pb-16 lg:pt-28 lg:pb-20">
           <div className="max-w-4xl mx-auto text-center">
 
             {/* Badge */}

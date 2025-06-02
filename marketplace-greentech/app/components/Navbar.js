@@ -271,12 +271,17 @@ export default function Navbar() {
           <div className="flex justify-between items-center h-16">
 
             {/* Logo */}
-            <div className="flex items-center">
-              <Link href="/" className="flex-shrink-0 flex items-center group">
-                <div className="relative flex items-center space-x-3">
-                  {/* Texte du nom */}
+            <div className="flex items-center flex-shrink-0">
+              <Link href="/" className="flex items-center group">
+                <div className="relative flex items-center">
+                  {/* Texte du nom - Version responsive */}
                   <div className="relative">
-                    <span className="text-2xl font-bold bg-gradient-to-r from-green-600 via-emerald-600 to-teal-600 bg-clip-text text-transparent group-hover:from-green-700 group-hover:via-emerald-700 group-hover:to-teal-700 transition-all duration-300">
+                    {/* Version mobile - Nom court */}
+                    <span className="block sm:hidden text-lg font-bold bg-gradient-to-r from-green-600 via-emerald-600 to-teal-600 bg-clip-text text-transparent group-hover:from-green-700 group-hover:via-emerald-700 group-hover:to-teal-700 transition-all duration-300">
+                      GreenTech
+                    </span>
+                    {/* Version tablet et plus - Nom complet */}
+                    <span className="hidden sm:block text-xl lg:text-2xl font-bold bg-gradient-to-r from-green-600 via-emerald-600 to-teal-600 bg-clip-text text-transparent group-hover:from-green-700 group-hover:via-emerald-700 group-hover:to-teal-700 transition-all duration-300">
                       GreenTech Marketplace
                     </span>
                     <div className="absolute -bottom-1 left-0 w-0 h-0.5 bg-gradient-to-r from-green-600 to-emerald-600 group-hover:w-full transition-all duration-300"></div>
@@ -406,16 +411,16 @@ export default function Navbar() {
                   </HeadlessMenu>
                 </div>
               ) : (
-                <div className="flex items-center space-x-3 ml-6">
+                <div className="flex items-center space-x-2 ml-4">
                   <Link
                     href="/auth/login"
-                    className="px-4 py-2 text-gray-700 hover:text-green-600 hover:bg-green-50 rounded-lg transition-all duration-200 font-medium"
+                    className="px-3 py-2 text-gray-700 hover:text-green-600 hover:bg-green-50 rounded-lg transition-all duration-200 font-medium whitespace-nowrap"
                   >
                     Connexion
                   </Link>
                   <Link
                     href="/auth/register"
-                    className="px-6 py-2.5 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-lg hover:from-green-700 hover:to-emerald-700 transition-all duration-200 transform hover:scale-105 shadow-md hover:shadow-lg font-medium"
+                    className="px-4 py-2 bg-gradient-to-r from-green-600 to-emerald-600 text-white rounded-lg hover:from-green-700 hover:to-emerald-700 transition-all duration-200 transform hover:scale-105 shadow-md hover:shadow-lg font-medium whitespace-nowrap"
                   >
                     Inscription
                   </Link>
@@ -510,6 +515,7 @@ export default function Navbar() {
                 </>
               ) : (
                 <>
+                  <div className="border-t border-gray-200 my-3 pt-3"></div>
                   <MobileNavLink href="/auth/login" onClick={closeMobileMenu}>
                     Connexion
                   </MobileNavLink>

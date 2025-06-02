@@ -70,18 +70,12 @@ export default function Hero() {
             <div className="relative mt-8 lg:mt-0">
               <div className="relative h-64 sm:h-80 lg:h-96 xl:h-[500px] w-full">
                 {/* Placeholder for illustration image */}
-                <div className="absolute inset-0 bg-gradient-to-br from-white/20 to-green-200/30 backdrop-blur-sm rounded-2xl lg:rounded-3xl shadow-2xl flex items-center justify-center border border-white/30">
-                  <div className="text-center space-y-3 lg:space-y-4 p-4">
-                    <div className="w-16 h-16 lg:w-20 lg:h-20 bg-white/30 backdrop-blur-sm rounded-xl lg:rounded-2xl mx-auto flex items-center justify-center">
-                      <Recycle className="w-8 h-8 lg:w-10 lg:h-10 text-white" />
-                    </div>
-                    <div className="space-y-2">
-                      <h3 className="text-lg lg:text-xl font-bold text-white">Espace pour illustration</h3>
-                      <p className="text-sm lg:text-base text-green-100 max-w-xs lg:max-w-sm mx-auto">
-                       Ici une image d'illustration montrant la réutilisation de matériaux
-                      </p>
-                    </div>
-                  </div>
+                <div className="absolute inset-0 rounded-2xl lg:rounded-3xl shadow-2xl border border-white/30 overflow-hidden">
+                  <img
+                    src="/images/illustration.png"
+                    alt="Illustration sur la réutilisation de matériaux"
+                    className="w-full h-full object-cover"
+                  />
                 </div>
 
                 {/* Floating Cards - Hidden on small screens */}
