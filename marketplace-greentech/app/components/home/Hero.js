@@ -68,7 +68,7 @@ export default function Hero() {
 
             {/* Illustration Section - 50% */}
             <div className="relative mt-8 lg:mt-0">
-              <div className="relative h-64 sm:h-80 lg:h-96 xl:h-[500px] w-full">
+              <div className="relative h-64 sm:h-80 lg:h-96 xl:h-[700px] w-full">
                 {/* Placeholder for illustration image */}
                 <div className="absolute inset-0 rounded-2xl lg:rounded-3xl shadow-2xl border border-white/30 overflow-hidden">
                   <img
