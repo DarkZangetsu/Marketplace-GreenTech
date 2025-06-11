@@ -11,7 +11,7 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 
 SECRET_KEY = 'token'
 DEBUG = True
-ALLOWED_HOSTS = ['localhost', '127.0.0.1', '*']
+ALLOWED_HOSTS = ['localhost', '127.0.0.1','https://marketplace-greentech.onrender.com/']
 
 INSTALLED_APPS = [
     'django.contrib.admin',
