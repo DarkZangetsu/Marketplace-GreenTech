@@ -1,7 +1,7 @@
 /* eslint-disable react-hooks/exhaustive-deps */
 'use client';
 
-import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { useState, useEffect, useMemo, useCallback, useRef, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { MessageSquare, Send, User, ArrowLeft, Package, Search, MoreVertical, Image as ImageIcon, Paperclip, Smile } from 'lucide-react';
@@ -17,8 +17,8 @@ import Picker from '@emoji-mart/react';
 import { getAttachmentType } from '@/app/components/messages/AttachmentType';
 import Lightbox from '@/app/components/messages/Lightbox';
 
-
-export default function MessagesPage() {
+// Composant qui utilise useSearchParams
+function MessagesPageContent() {
   const searchParams = useSearchParams();
   const listingIdParam = searchParams.get('listing');
   const messagesEndRef = useRef(null);
@@ -1130,5 +1130,21 @@ export default function MessagesPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+// Composant principal avec Suspense boundary
+export default function MessagesPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Chargement des messages...</p>
+        </div>
+      </div>
+    }>
+      <MessagesPageContent />
+    </Suspense>
   );
 }
