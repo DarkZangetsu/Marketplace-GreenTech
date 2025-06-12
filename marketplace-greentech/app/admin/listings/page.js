@@ -202,7 +202,7 @@ export default function AdminListings() {
                             src={
                               listing.images[0].image.startsWith('http') || listing.images[0].image.startsWith('/')
                                 ? listing.images[0].image
-                                : `http://localhost:8000/media/${listing.images[0].image}`
+                                : `${process.env.NEXT_PUBLIC_MEDIA_URL || 'https://marketplace-greentech.onrender.com/media/'}${listing.images[0].image}`
                             }
                             alt={listing.title}
                             fill

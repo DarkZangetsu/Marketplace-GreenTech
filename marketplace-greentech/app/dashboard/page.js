@@ -15,7 +15,8 @@ import { GET_ALL_LISTINGS, GET_LISTINGS_WITH_MESSAGES, GET_CATEGORIES } from '@/
 const getProfilePictureUrl = (url) => {
   if (!url) return '/default-avatar.png';
   if (url.startsWith('http')) return url;
-  return `http://localhost:8000/media/${url}`;
+  const baseUrl = process.env.NEXT_PUBLIC_MEDIA_URL || 'https://marketplace-greentech.onrender.com/media/';
+  return `${baseUrl}${url}`;
 };
 
 export default function DashboardPage() {

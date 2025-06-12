@@ -31,7 +31,7 @@ export default function ListingCard({ listing, viewMode = 'grid' }) {
           <div className="relative h-48 sm:h-auto sm:w-48 bg-gray-200">
             {listing.images && listing.images.length > 0 ? (
               <Image
-                src={`http://localhost:8000/media/${listing.images[0].image}`}
+                src={`${process.env.NEXT_PUBLIC_MEDIA_URL || 'https://marketplace-greentech.onrender.com/media/'}${listing.images[0].image}`}
                 alt={listing.title}
                 fill
                 className="object-cover"
@@ -89,7 +89,7 @@ export default function ListingCard({ listing, viewMode = 'grid' }) {
       <div className="relative h-48 w-full bg-gray-200">
         {listing.images && listing.images.length > 0 ? (
           <Image
-            src={`http://localhost:8000/media/${listing.images[0].image}`}
+            src={`${process.env.NEXT_PUBLIC_MEDIA_URL || 'https://marketplace-greentech.onrender.com/media/'}${listing.images[0].image}`}
             alt={listing.title}
             fill
             className="object-cover"

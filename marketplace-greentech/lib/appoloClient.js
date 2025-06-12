@@ -18,7 +18,7 @@ const errorLink = onError(({ graphQLErrors, networkError }) => {
 });
 
 const uploadLink = createUploadLink({
-  uri: 'http://localhost:8000/graphql/',
+  uri: process.env.NEXT_PUBLIC_GRAPHQL_URL || 'https://marketplace-greentech.onrender.com/graphql/',
   credentials: 'include',
 });
 

@@ -151,7 +151,8 @@ export default function ListingDetailPage({ params }) {
       return imagePath;
     }
     // Si c'est un chemin relatif
-    return `http://localhost:8000/media/${imagePath}`;
+    const baseUrl = process.env.NEXT_PUBLIC_MEDIA_URL || 'https://marketplace-greentech.onrender.com/media/';
+    return `${baseUrl}${imagePath}`;
   };
 
   // Check if current user is the owner of the listing

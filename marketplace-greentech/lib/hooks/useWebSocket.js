@@ -67,7 +67,8 @@ export const useWebSocket = (userId, onMessage) => {
       setError(null);
       
       const token = getAuthToken();
-      let wsUrl = `ws://localhost:8000/ws/messages/${userId}/`;
+      const baseWsUrl = process.env.NEXT_PUBLIC_WS_URL || 'wss://marketplace-greentech.onrender.com';
+      let wsUrl = `${baseWsUrl}/ws/messages/${userId}/`;
       
       if (token) {
         wsUrl += `?token=${encodeURIComponent(token)}`;

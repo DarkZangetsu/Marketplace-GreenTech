@@ -25,17 +25,17 @@ export const getFullName = (user) => {
 export const getImageUrl = (url) => {
   if (!url) return null;
   if (url.startsWith('http')) return url;
-  return `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}${url}`;
+  return `${process.env.NEXT_PUBLIC_API_URL || 'https://marketplace-greentech.onrender.com'}${url}`;
 };
 
 export const getFileUrl = (url) => {
   if (!url) return null;
   if (url.startsWith('http')) return url;
-  return `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}${url}`;
+  return `${process.env.NEXT_PUBLIC_API_URL || 'https://marketplace-greentech.onrender.com'}${url}`;
 };
 
 export const getProfilePictureUrl = (url) => {
   if (!url) return '/default-avatar.png';
   if (url.startsWith('http')) return url;
-  return `http://localhost:8000/media/${url}`;
+  return `${process.env.NEXT_PUBLIC_MEDIA_URL || 'https://marketplace-greentech.onrender.com/media/'}${url}`;
 };
