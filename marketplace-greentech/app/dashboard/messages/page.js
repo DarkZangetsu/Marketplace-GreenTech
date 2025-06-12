@@ -86,7 +86,7 @@ function MessagesPageContent() {
     }
   },
   onError: (error) => {
-    console.error('Erreur lors de l\'envoi du message:', error);
+    // Error logging removed for production security
   }
 });
 
@@ -98,7 +98,7 @@ function MessagesPageContent() {
       }, 200);
     },
     onError: (error) => {
-      console.error('Erreur lors du marquage comme lu:', error);
+      // Error logging removed for production security
     }
   });
 

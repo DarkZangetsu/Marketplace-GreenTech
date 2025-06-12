@@ -35,13 +35,13 @@ export default function DashboardPage() {
   // GraphQL queries avec gestion d'erreur améliorée
   const { data: listingsData, loading: listingsLoading, error: listingsError } = useQuery(GET_ALL_LISTINGS, {
     onError: (error) => {
-      console.error('Error fetching listings:', error);
+      // Error logging removed for production security
     }
   });
   
   const { data: messagesData, loading: messagesLoading, error: messagesError } = useQuery(GET_LISTINGS_WITH_MESSAGES, {
     onError: (error) => {
-      console.error('Error fetching messages:', error);
+      // Error logging removed for production security
     }
   });
 
@@ -80,7 +80,7 @@ export default function DashboardPage() {
           phone: parsedUser.phoneNumber || '',
         });
       } catch (error) {
-        console.error('Error parsing user data:', error);
+        // Error logging removed for production security
         toast.error('Erreur lors du chargement des données utilisateur');
         localStorage.removeItem('user');
         router.push('/auth/login');
@@ -107,7 +107,7 @@ export default function DashboardPage() {
     },
     onError: (error) => {
       toast.error('Erreur lors de la mise à jour du profil');
-      console.error('Update profile error:', error);
+      // Error logging removed for production security
       
       if (error.message?.includes('permission') || error.message?.includes('authentication')) {
         toast.error('Session expirée. Veuillez vous reconnecter.');
@@ -132,7 +132,7 @@ export default function DashboardPage() {
     },
     onError: (error) => {
       toast.error('Erreur lors de la mise à jour de la photo');
-      console.error('Upload profile picture error:', error);
+      // Error logging removed for production security
     }
   });
 

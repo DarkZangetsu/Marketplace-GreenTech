@@ -202,12 +202,12 @@ export const useWebSocket = (userId, onMessage) => {
         if (reconnectAttemptsRef.current < maxReconnectAttempts && event.code !== 4001 && mountedRef.current) {
           const delay = Math.min(Math.pow(2, reconnectAttemptsRef.current) * 1000, 30000);
           
-          console.log(`Planification de reconnexion dans ${delay}ms (tentative ${reconnectAttemptsRef.current + 1}/${maxReconnectAttempts})`);
-          
+          // Logging removed for production security
+
           reconnectTimeoutRef.current = setTimeout(() => {
             if (mountedRef.current) {
               reconnectAttemptsRef.current++;
-              console.log(`Tentative de reconnexion ${reconnectAttemptsRef.current}/${maxReconnectAttempts}`);
+              // Logging removed for production security
               setConnectionState('reconnecting');
               connect();
             }
@@ -223,26 +223,25 @@ export const useWebSocket = (userId, onMessage) => {
         
         if (!mountedRef.current) return;
         
-        console.error('Erreur WebSocket:', error);
-        console.error('WebSocket readyState:', ws.current?.readyState);
-        
+        // Error logging removed for production security
+
         // Gérer l'erreur selon l'état de la connexion
         if (ws.current?.readyState === WebSocket.CONNECTING) {
-          console.error('Erreur lors de la connexion WebSocket');
+          // Error logging removed for production security
           setError('Impossible de se connecter au serveur');
           setConnectionState('error');
         }
       };
 
     } catch (error) {
-      console.error('Erreur lors de la création de la connexion WebSocket:', error);
+      // Error logging removed for production security
       setError(`Erreur de création: ${error.message}`);
       setConnectionState('error');
     }
   }, [userId, onMessage, cleanup]);
 
   const disconnect = useCallback(() => {
-    console.log('Déconnexion WebSocket demandée');
+    // Logging removed for production security
     mountedRef.current = false;
     
     cleanup();
@@ -269,7 +268,7 @@ export const useWebSocket = (userId, onMessage) => {
   }, [cleanup]);
 
   const forceReconnect = useCallback(() => {
-    console.log('Reconnexion forcée demandée');
+    // Logging removed for production security
     reconnectAttemptsRef.current = 0;
     mountedRef.current = true;
     

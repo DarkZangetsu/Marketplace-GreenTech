@@ -58,7 +58,7 @@ export default function UserListingsPage() {
       }
     },
     onError: (error) => {
-      console.error('Erreur lors de la suppression:', error);
+      // Error logging removed for production security
       toast.error('Erreur lors de la suppression de l\'annonce');
     }
   });
@@ -69,7 +69,7 @@ export default function UserListingsPage() {
       refetch(); // Refresh the listings
     },
     onError: (error) => {
-      console.error('Erreur lors du changement de statut:', error);
+      // Error logging removed for production security
       toast.error('Erreur lors du changement de statut');
     }
   });
@@ -90,7 +90,7 @@ export default function UserListingsPage() {
         setUser(parsedUser);
         setCurrentUserId(parsedUser.id);
       } catch (error) {
-        console.error('Error parsing user data:', error);
+        // Error logging removed for production security
         localStorage.removeItem('user');
         router.push('/auth/login');
       }
@@ -107,8 +107,7 @@ export default function UserListingsPage() {
     // Convertir en string au cas où ce serait un autre type
     const normalized = String(status).toLowerCase().trim();
 
-    // Debug: Log pour voir les statuts reçus
-    console.log('Status original:', status, '→ normalized:', normalized);
+    // Debug logging removed for production security
 
     // Mapping des variantes possibles - correction ici
     const statusMapping = {
@@ -125,11 +124,11 @@ export default function UserListingsPage() {
     const result = statusMapping[normalized];
 
     if (!result) {
-      console.warn('Statut non reconnu:', normalized, '- utilisation de "active" par défaut');
+      // Warning logging removed for production security
       return 'active';
     }
 
-    console.log('Statut mappé:', normalized, '→', result);
+    // Debug logging removed for production security
     return result;
   };
 
@@ -142,22 +141,20 @@ export default function UserListingsPage() {
       inactive: 0
     };
 
-    // Debug: Log tous les statuts des annonces
-    console.log('Toutes les annonces avec leurs statuts:');
+    // Debug logging removed for production security
     userListings.forEach((listing, index) => {
       const originalStatus = listing.status;
       const normalizedStatus = normalizeStatus(originalStatus);
-      console.log(`Annonce ${index + 1}: "${listing.title}" - Status original: "${originalStatus}" → Status normalisé: "${normalizedStatus}"`);
 
       if (counts.hasOwnProperty(normalizedStatus)) {
         counts[normalizedStatus]++;
       } else {
-        console.warn('Statut non reconnu:', normalizedStatus, 'pour l\'annonce:', listing.title);
+        // Warning logging removed for production security
         counts.active++; // Fallback
       }
     });
 
-    console.log('Compteurs finaux:', counts);
+    // Debug logging removed for production security
     return counts;
   };
 
@@ -165,10 +162,10 @@ export default function UserListingsPage() {
 
   // Filter listings based on status
   const getFilteredListings = () => {
-    console.log('Filtre actuel:', activeFilter);
+    // Debug logging removed for production security
 
     if (activeFilter === 'all') {
-      console.log('Affichage de toutes les annonces:', userListings.length);
+      // Debug logging removed for production security
       return userListings;
     }
 
@@ -176,17 +173,12 @@ export default function UserListingsPage() {
       const listingStatus = normalizeStatus(listing.status);
       const matches = listingStatus === activeFilter;
 
-      if (matches) {
-        console.log(`✅ Annonce "${listing.title}" correspond au filtre "${activeFilter}" (statut: "${listing.status}" → "${listingStatus}")`);
-      }
+      // Debug logging removed for production security
 
       return matches;
     });
 
-    console.log(`Résultat du filtrage pour "${activeFilter}": ${filtered.length} annonces trouvées`);
-    filtered.forEach(listing => {
-      console.log(`- "${listing.title}" (statut: "${listing.status}")`);
-    });
+    // Debug logging removed for production security
 
     return filtered;
   };
@@ -214,7 +206,7 @@ export default function UserListingsPage() {
         setShowDeleteModal(false);
         setListingToDelete(null);
       } catch (error) {
-        console.error('Erreur lors de la suppression:', error);
+        // Error logging removed for production security
       }
     }
   };
@@ -228,7 +220,7 @@ export default function UserListingsPage() {
         }
       });
     } catch (error) {
-      console.error('Erreur lors du changement de statut:', error);
+      // Error logging removed for production security
     }
   };
 
