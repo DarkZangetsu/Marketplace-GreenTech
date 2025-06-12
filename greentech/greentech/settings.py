@@ -18,6 +18,9 @@ ALLOWED_HOSTS = [
     '127.0.0.1',
     'marketplace-greentech.onrender.com',
     '.onrender.com',
+    'marketplace-green-tech.vercel.app',
+    '*.vercel.app',
+    '.vercel.app',
 ]
 
 INSTALLED_APPS = [
