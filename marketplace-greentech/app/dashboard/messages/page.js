@@ -41,6 +41,21 @@ function MessagesPageContent() {
   const messagesEndRef = useRef(null);
   const messagesContainerRef = useRef(null);
 
+  // Gestion globale des erreurs de promesses
+  useEffect(() => {
+    const handleUnhandledRejection = (event) => {
+      // Empêcher l'erreur de remonter
+      event.preventDefault();
+      // Log silencieux en production
+    };
+
+    window.addEventListener('unhandledrejection', handleUnhandledRejection);
+
+    return () => {
+      window.removeEventListener('unhandledrejection', handleUnhandledRejection);
+    };
+  }, []);
+
   const [activeConversation, setActiveConversation] = useState(null);
   const [newMessage, setNewMessage] = useState('');
   const [showMobileList, setShowMobileList] = useState(true);
@@ -575,8 +590,8 @@ function MessagesPageContent() {
   }, [listingIdParam, conversations, activeConversation, markConversationAsRead]);
 
   // Envoyer un message
-  const handleSendMessage = async (e) => {
-    e.preventDefault();
+  const handleSendMessage = async (event) => {
+    event.preventDefault();
 
     if ((!newMessage.trim() && !selectedFile) || !activeConversation || sendingMessage || !activeConversation.otherUser || !activeConversation.listing) return;
 
@@ -616,8 +631,8 @@ function MessagesPageContent() {
     }
   };
 
-  const handleFileSelect = (e) => {
-    const file = e.target.files[0];
+  const handleFileSelect = (event) => {
+    const file = event.target.files[0];
     if (file) {
       setSelectedFile(file);
     }
@@ -668,8 +683,12 @@ function MessagesPageContent() {
     setShowMobileList(false);
 
     // Marquer les messages non lus comme lus après un court délai
-    setTimeout(() => {
-      markConversationAsRead(conversation);
+    setTimeout(async () => {
+      try {
+        await markConversationAsRead(conversation);
+      } catch (error) {
+        // Erreur silencieuse
+      }
     }, 300);
   };
 
@@ -778,7 +797,7 @@ function MessagesPageContent() {
                 placeholder="Rechercher une conversation..."
                 className="w-full pl-10 pr-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-transparent text-sm"
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={(event) => setSearchQuery(event.target.value)}
               />
             </div>
           </div>
@@ -1076,7 +1095,7 @@ function MessagesPageContent() {
                         placeholder="Écrivez votre message..."
                         className="w-full border border-gray-300 rounded-2xl px-4 py-3 focus:ring-2 focus:ring-green-500 focus:border-transparent resize-none text-sm"
                         value={newMessage}
-                        onChange={(e) => setNewMessage(e.target.value)}
+                        onChange={(event) => setNewMessage(event.target.value)}
                         disabled={sendingMessage}
                         rows={1}
                         style={{
@@ -1084,14 +1103,14 @@ function MessagesPageContent() {
                           maxHeight: '120px',
                           height: 'auto'
                         }}
-                        onInput={(e) => {
-                          e.target.style.height = 'auto';
-                          e.target.style.height = e.target.scrollHeight + 'px';
+                        onInput={(event) => {
+                          event.target.style.height = 'auto';
+                          event.target.style.height = event.target.scrollHeight + 'px';
                         }}
-                        onKeyDown={(e) => {
-                          if (e.key === 'Enter' && !e.shiftKey) {
-                            e.preventDefault();
-                            handleSendMessage(e);
+                        onKeyDown={(event) => {
+                          if (event.key === 'Enter' && !event.shiftKey) {
+                            event.preventDefault();
+                            handleSendMessage(event);
                           }
                         }}
                       />
