@@ -168,29 +168,29 @@ async function main() {
     // Tenter de réveiller le service
     const wakeUpSuccess = await wakeUpService();
     if (!wakeUpSuccess) {
-      console.log('\n❌ Test échoué: API inaccessible');
+      console.log('\n Test échoué: API inaccessible');
       process.exit(1);
     }
   }
   
   // 2. Attendre un peu pour que le service soit prêt
-  console.log('\n⏳ Attente 3 secondes pour que le service soit prêt...');
+  console.log('\n Attente 3 secondes pour que le service soit prêt...');
   await new Promise(resolve => setTimeout(resolve, 3000));
   
   // 3. Tester WebSocket
   const wsWorking = await testWebSocket();
   
   // 4. Résumé
-  console.log('\n📊 Résumé des tests:');
-  console.log(`  API HTTP: ${apiWorking ? '✅ OK' : '❌ Échec'}`);
-  console.log(`  WebSocket: ${wsWorking ? '✅ OK' : '❌ Échec'}`);
+  console.log('\n Résumé des tests:');
+  console.log(`  API HTTP: ${apiWorking ? ' OK' : ' Échec'}`);
+  console.log(`  WebSocket: ${wsWorking ? ' OK' : ' Échec'}`);
   
   if (apiWorking && wsWorking) {
-    console.log('\n🎉 Tous les tests sont passés !');
+    console.log('\n Tous les tests sont passés !');
     process.exit(0);
   } else {
-    console.log('\n❌ Certains tests ont échoué');
-    console.log('\n💡 Suggestions:');
+    console.log('\n Certains tests ont échoué');
+    console.log('\n Suggestions:');
     
     if (!apiWorking) {
       console.log('  • Vérifiez que le service Django est démarré sur Render');
@@ -209,7 +209,7 @@ async function main() {
 
 // Gestion des erreurs non capturées
 process.on('unhandledRejection', (error) => {
-  console.error('❌ Erreur non gérée:', error.message);
+  console.error(' Erreur non gérée:', error.message);
   process.exit(1);
 });
 

@@ -37,7 +37,7 @@ export default function HeroContact() {
               <div className="bg-white/10 backdrop-blur-sm rounded-xl lg:rounded-2xl p-4 lg:p-6 border border-white/20">
                 <Phone className="w-6 h-6 lg:w-8 lg:h-8 text-white mx-auto mb-2 lg:mb-3" />
                 <div className="text-sm lg:text-base font-semibold text-white mb-1">Téléphone</div>
-                <div className="text-xs lg:text-sm text-green-200">+261 34 12 345 67</div>
+                <div className="text-xs lg:text-sm text-green-200">+261 34 31 720 81</div>
               </div>
 
               <div className="bg-white/10 backdrop-blur-sm rounded-xl lg:rounded-2xl p-4 lg:p-6 border border-white/20">
@@ -49,7 +49,7 @@ export default function HeroContact() {
               <div className="bg-white/10 backdrop-blur-sm rounded-xl lg:rounded-2xl p-4 lg:p-6 border border-white/20">
                 <MapPin className="w-6 h-6 lg:w-8 lg:h-8 text-white mx-auto mb-2 lg:mb-3" />
                 <div className="text-sm lg:text-base font-semibold text-white mb-1">Adresse</div>
-                <div className="text-xs lg:text-sm text-green-200">Antananarivo, Madagascar</div>
+                <div className="text-xs lg:text-sm text-green-200">Fianarantsoa, Madagascar</div>
               </div>
             </div>
 
