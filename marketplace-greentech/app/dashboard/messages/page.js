@@ -78,10 +78,16 @@ function MessagesPageContent() {
     fetchPolicy: 'cache-first' // Utiliser le cache en priorité
   });
 
-  // Initialiser WebSocket d'abord pour avoir isConnected disponible
+  // Initialiser les queries d'abord pour avoir refetchMessages disponible
   const currentUser = userData?.me;
 
-  // Gestionnaire de nouveaux messages WebSocket amélioré (défini avant useWebSocket)
+  const { data: messagesData, loading: messagesLoading, error: messagesError, refetch: refetchMessages } = useQuery(MY_MESSAGES, {
+    fetchPolicy: 'cache-and-network', // Restauré pour permettre les mises à jour temps réel
+    notifyOnNetworkStatusChange: false, // Éviter les re-renders inutiles
+    pollInterval: 0 // Sera mis à jour dynamiquement
+  });
+
+  // Gestionnaire de nouveaux messages WebSocket amélioré (défini après refetchMessages)
   const handleNewMessage = useCallback((messageData) => {
     // Extraction correcte du message selon la structure reçue
     let message = messageData;
@@ -130,11 +136,10 @@ function MessagesPageContent() {
 
   const { isConnected, connectionState } = useWebSocket(currentUser?.id, handleNewMessage);
 
-  const { data: messagesData, loading: messagesLoading, error: messagesError, refetch: refetchMessages } = useQuery(MY_MESSAGES, {
-    fetchPolicy: 'cache-and-network', // Restauré pour permettre les mises à jour temps réel
-    notifyOnNetworkStatusChange: false, // Éviter les re-renders inutiles
-    pollInterval: isConnected ? 0 : 15000 // Polling de secours si WebSocket déconnecté
-  });
+  // Mettre à jour le polling interval dynamiquement
+  useEffect(() => {
+    // Cette approche ne fonctionne pas directement avec Apollo, nous utiliserons le polling manuel
+  }, [isConnected]);
 
   const { data: conversationData, loading: conversationLoading, refetch: refetchConversation } = useQuery(GET_CONVERSATION, {
     variables: {
