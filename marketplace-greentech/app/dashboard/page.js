@@ -10,6 +10,7 @@ import { useRouter } from 'next/navigation';
 import { toast } from 'react-hot-toast';
 import Image from 'next/image';
 import { GET_ALL_LISTINGS, GET_LISTINGS_WITH_MESSAGES, GET_CATEGORIES } from '@/lib/graphql/queries';
+import WebSocketDiagnostic from '@/app/components/WebSocketDiagnostic';
 
 // Fonction utilitaire pour l'URL de la photo de profil
 const getProfilePictureUrl = (url) => {

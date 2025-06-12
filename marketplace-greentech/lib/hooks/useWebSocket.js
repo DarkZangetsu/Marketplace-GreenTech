@@ -69,21 +69,29 @@ export const useWebSocket = (userId, onMessage) => {
       const token = getAuthToken();
       const baseWsUrl = process.env.NEXT_PUBLIC_WS_URL || 'wss://marketplace-greentech.onrender.com';
       let wsUrl = `${baseWsUrl}/ws/messages/${userId}/`;
-      
+
       if (token) {
         wsUrl += `?token=${encodeURIComponent(token)}`;
       }
 
+      // Amélioration pour Render : ajouter des headers et protocoles
+      const wsOptions = {
+        protocols: ['websocket'],
+        headers: {
+          'Origin': process.env.NEXT_PUBLIC_API_URL || 'https://marketplace-greentech.onrender.com'
+        }
+      };
+
       ws.current = new WebSocket(wsUrl);
 
-      // Timeout de connexion
+      // Timeout de connexion plus long pour Render
       const connectionTimeout = setTimeout(() => {
         if (ws.current && ws.current.readyState === WebSocket.CONNECTING) {
           ws.current.close();
-          setError('Timeout de connexion');
+          setError('Timeout de connexion - Le serveur met du temps à répondre');
           setConnectionState('error');
         }
-      }, 10000); // 10 secondes timeout
+      }, 30000); // 30 secondes timeout pour Render
 
       ws.current.onopen = (event) => {
         clearTimeout(connectionTimeout);
