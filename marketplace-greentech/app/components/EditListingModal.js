@@ -68,8 +68,8 @@ export const EditListingModal = ({ listing, isOpen, onClose, onUpdate }) => {
     }
   }, [listing, isOpen]);
 
-  const handleInputChange = (e) => {
-    const { name, value, type, checked } = e.target;
+  const handleInputChange = (event) => {
+    const { name, value, type, checked } = event.target;
     
     if (type === 'checkbox') {
       setFormData(prev => ({
@@ -92,8 +92,8 @@ export const EditListingModal = ({ listing, isOpen, onClose, onUpdate }) => {
     }
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleSubmit = async (event) => {
+    event.preventDefault();
 
     if (!listing?.id || !currentUser?.id) return;
 

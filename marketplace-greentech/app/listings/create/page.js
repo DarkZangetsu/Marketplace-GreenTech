@@ -85,8 +85,8 @@ export default function CreateListingPage() {
     }
   });
 
-  const handleChange = (e) => {
-    const { name, value, type, checked } = e.target;
+  const handleChange = (event) => {
+    const { name, value, type, checked } = event.target;
 
     if (type === 'checkbox') {
       setFormData(prev => ({
@@ -117,8 +117,8 @@ export default function CreateListingPage() {
     }
   };
 
-  const handleImageChange = async (e) => {
-    const files = Array.from(e.target.files);
+  const handleImageChange = async (event) => {
+    const files = Array.from(event.target.files);
 
     // Validate file types and sizes
     const validFiles = files.filter(file => {
@@ -233,8 +233,8 @@ export default function CreateListingPage() {
     return results;
   };
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
+  const handleSubmit = async (event) => {
+    event.preventDefault();
 
     if (!validateForm()) {
       return;
