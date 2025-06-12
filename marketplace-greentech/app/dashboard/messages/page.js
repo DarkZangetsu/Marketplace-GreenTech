@@ -2,6 +2,23 @@
 'use client';
 
 import { useState, useEffect, useMemo, useCallback, useRef, Suspense } from 'react';
+
+// Hook de debouncing pour optimiser les performances
+const useDebounce = (value, delay) => {
+  const [debouncedValue, setDebouncedValue] = useState(value);
+
+  useEffect(() => {
+    const handler = setTimeout(() => {
+      setDebouncedValue(value);
+    }, delay);
+
+    return () => {
+      clearTimeout(handler);
+    };
+  }, [value, delay]);
+
+  return debouncedValue;
+};
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
 import { MessageSquare, Send, User, ArrowLeft, Package, Search, MoreVertical, Image as ImageIcon, Paperclip, Smile } from 'lucide-react';
@@ -41,10 +58,14 @@ function MessagesPageContent() {
   const [lightbox, setLightbox] = useState({ open: false, url: '', type: '' });
   const [visibleMessages, setVisibleMessages] = useState(new Set());
 
-  // GraphQL queries et mutations
-  const { data: userData } = useQuery(GET_ME);
+  // GraphQL queries et mutations - Optimisées pour les performances
+  const { data: userData } = useQuery(GET_ME, {
+    fetchPolicy: 'cache-first' // Utiliser le cache en priorité
+  });
+
   const { data: messagesData, loading: messagesLoading, error: messagesError, refetch: refetchMessages } = useQuery(MY_MESSAGES, {
-    fetchPolicy: 'cache-and-network'
+    fetchPolicy: 'cache-first', // Changé de cache-and-network à cache-first
+    notifyOnNetworkStatusChange: false // Éviter les re-renders inutiles
   });
 
   const { data: conversationData, loading: conversationLoading, refetch: refetchConversation } = useQuery(GET_CONVERSATION, {
@@ -53,7 +74,8 @@ function MessagesPageContent() {
       listingId: activeConversation?.listing?.id
     },
     skip: !activeConversation?.otherUser?.id || !activeConversation?.listing?.id,
-    fetchPolicy: 'cache-and-network'
+    fetchPolicy: 'cache-first', // Changé de cache-and-network à cache-first
+    notifyOnNetworkStatusChange: false // Éviter les re-renders inutiles
   });
 
   const [sendMessage, { loading: sendingMessage }] = useMutation(SEND_MESSAGE, {
@@ -79,10 +101,7 @@ function MessagesPageContent() {
         return prev;
       });
       
-      // Rafraîchir les données après un court délai
-      setTimeout(() => {
-        refetchMessages();
-      }, 200);
+      // Refetch supprimé - WebSocket gère la synchronisation
     }
   },
   onError: (error) => {
@@ -92,10 +111,7 @@ function MessagesPageContent() {
 
   const [markAsRead] = useMutation(MARK_MESSAGE_AS_READ, {
     onCompleted: () => {
-      // Rafraîchir les données après marquage comme lu
-      setTimeout(() => {
-        refetchMessages();
-      }, 200);
+      // Refetch supprimé - l'état local est mis à jour directement
     },
     onError: (error) => {
       // Error logging removed for production security
@@ -241,63 +257,57 @@ function MessagesPageContent() {
     }
   }
 
-  // Forcer le rafraîchissement des conversations après ajout
-  setTimeout(() => {
-    refetchMessages();
-  }, 500);
+  // Refetch supprimé - l'état local est déjà mis à jour
 }, [activeConversation, currentUser, refetchMessages]);
 
   // Initialiser WebSocket
   const { isConnected, connectionState } = useWebSocket(currentUser?.id, handleNewMessage);
 
-  // Synchroniser les messages GraphQL avec l'état local
+  // Synchroniser les messages GraphQL avec l'état local - Optimisé
   useEffect(() => {
-  if (messagesData?.myMessages) {
-    setAllMessages(prevMessages => {
-      const graphqlMessages = messagesData.myMessages.filter(msg => msg && msg.id);
-      const existingMessageIds = new Set(prevMessages.map(msg => msg?.id).filter(Boolean));
+    if (messagesData?.myMessages) {
+      setAllMessages(prevMessages => {
+        const graphqlMessages = messagesData.myMessages.filter(msg => msg && msg.id);
+        const existingMessageIds = new Set(prevMessages.map(msg => msg?.id).filter(Boolean));
 
-      // Ajouter uniquement les nouveaux messages GraphQL
-      const newGraphqlMessages = graphqlMessages.filter(msg => !existingMessageIds.has(msg.id));
+        // Ajouter uniquement les nouveaux messages GraphQL
+        const newGraphqlMessages = graphqlMessages.filter(msg => !existingMessageIds.has(msg.id));
 
-      if (newGraphqlMessages.length > 0) {
-        const mergedMessages = [...prevMessages, ...newGraphqlMessages];
+        if (newGraphqlMessages.length > 0) {
+          const mergedMessages = [...prevMessages, ...newGraphqlMessages];
+          // Trier par date de création
+          const sortedMessages = mergedMessages.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
 
-        // Trier par date de création
-        const sortedMessages = mergedMessages.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
-
-        // Déclencher la mise à jour des conversations
-        setTimeout(() => {
+          // Mise à jour immédiate sans setTimeout pour éviter les cascades
           setLastMessageUpdate(Date.now());
-        }, 0);
 
-        return sortedMessages;
-      }
+          return sortedMessages;
+        }
 
-      return prevMessages;
-    });
-  }
-}, [messagesData?.myMessages]);
+        return prevMessages;
+      });
+    }
+  }, [messagesData?.myMessages]);
 
-  // Synchroniser les messages de conversation
+  // Synchroniser les messages de conversation - Optimisé
   useEffect(() => {
     if (conversationData?.conversation) {
       const conversationMessages = conversationData.conversation.filter(msg => msg && msg.id);
 
       setAllMessages(prevMessages => {
-        const mergedMessages = [...prevMessages];
+        const existingIds = new Set(prevMessages.map(msg => msg?.id).filter(Boolean));
+        const newMessages = conversationMessages.filter(msg => !existingIds.has(msg.id));
 
-        // Ajouter les messages de conversation qui ne sont pas déjà présents
-        conversationMessages.forEach(convMsg => {
-          if (convMsg && convMsg.id && !mergedMessages.some(msg => msg?.id === convMsg.id)) {
-            mergedMessages.push(convMsg);
-          }
-        });
+        if (newMessages.length > 0) {
+          const mergedMessages = [...prevMessages, ...newMessages];
+          return mergedMessages.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+        }
 
-        return mergedMessages.sort((a, b) => new Date(a.createdAt) - new Date(b.createdAt));
+        return prevMessages;
       });
 
-      setTimeout(scrollToBottom, 100);
+      // Scroll optimisé avec requestAnimationFrame
+      requestAnimationFrame(() => scrollToBottom());
     }
   }, [conversationData?.conversation]);
 
@@ -646,16 +656,8 @@ function MessagesPageContent() {
     }, 300);
   };
 
-  useEffect(() => {
-    // Rafraîchir périodiquement les messages pour s'assurer de la synchronisation
-    const interval = setInterval(() => {
-      if (!sendingMessage) {
-        refetchMessages();
-      }
-    }, 1000); // Toutes les 10 secondes
-
-    return () => clearInterval(interval);
-  }, [refetchMessages, sendingMessage]);
+  // Polling supprimé pour optimiser les performances
+  // Le WebSocket gère les mises à jour en temps réel
 
   // Calculer le nombre total de messages non lus
   const unreadCount = conversations.reduce((total, conv) => total + (conv?.unreadCount || 0), 0);
@@ -700,7 +702,11 @@ function MessagesPageContent() {
       <div className="bg-white border-b border-gray-200 px-4 py-3 flex-shrink-0 sticky top-0 z-10">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-4">
-            <Link href="/dashboard" className="text-gray-500 hover:text-green-600 mr-2">
+            <Link
+              href="/dashboard"
+              className="text-gray-500 hover:text-green-600 mr-2 transition-colors duration-200"
+              prefetch={true}
+            >
               <ArrowLeft size={24} />
             </Link>
             <h1 className="text-xl font-semibold text-gray-900">Messages</h1>
