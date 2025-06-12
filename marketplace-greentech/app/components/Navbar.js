@@ -278,7 +278,7 @@ export default function Navbar() {
                   <div className="relative">
                     {/* Version mobile - Nom court */}
                     <span className="block sm:hidden text-lg font-bold bg-gradient-to-r from-green-600 via-emerald-600 to-teal-600 bg-clip-text text-transparent group-hover:from-green-700 group-hover:via-emerald-700 group-hover:to-teal-700 transition-all duration-300">
-                      GreenTech
+                      GreenTech Marketplace
                     </span>
                     {/* Version tablet et plus - Nom complet */}
                     <span className="hidden sm:block text-xl lg:text-2xl font-bold bg-gradient-to-r from-green-600 via-emerald-600 to-teal-600 bg-clip-text text-transparent group-hover:from-green-700 group-hover:via-emerald-700 group-hover:to-teal-700 transition-all duration-300">
