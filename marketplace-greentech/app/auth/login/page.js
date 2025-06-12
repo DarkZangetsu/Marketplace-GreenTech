@@ -29,11 +29,6 @@ export default function LoginPage() {
           isStaff: Boolean(data.login.isStaff) // S'assurer que c'est un booléen
         };
         
-        // Debug - voir ce qui est stocké
-        console.log('Storing user data:', userData);
-        console.log('isStaff value:', userData.isStaff);
-        console.log('isStaff type:', typeof userData.isStaff);
-        
         // Stocker les données utilisateur
         localStorage.setItem('user', JSON.stringify(userData));
   
@@ -49,10 +44,8 @@ export default function LoginPage() {
   
         setTimeout(() => {
           if (userData.isStaff) {
-            console.log('Redirecting to admin dashboard');
             window.location.href = '/admin';
           } else {
-            console.log('Redirecting to user dashboard');
             window.location.href = '/dashboard';
           }
         }, 1000);

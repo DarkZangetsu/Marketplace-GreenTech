@@ -52,7 +52,7 @@ export default function CreateListingPage() {
     }
 
     const parsedUser = JSON.parse(storedUser);
-    console.log('Stored user:', parsedUser); // Debug log
+    // Debug logging removed for production security
 
     setToken(storedToken);
     setUser(parsedUser);
@@ -150,7 +150,7 @@ export default function CreateListingPage() {
     }));
   };
 
-  const removeImage = (index) => {
+  const removeImage = (index) => {f
     setPreviewImages(prev => {
       const newPreviews = [...prev];
       URL.revokeObjectURL(newPreviews[index].preview);
@@ -204,11 +204,7 @@ export default function CreateListingPage() {
   };
 
   const uploadListingImages = async (listingId, images) => {
-    console.log('Starting image uploads for listing ID:', listingId);
-    console.log('Number of images to upload:', images.length);
-
     if (!token) {
-      console.error('No token available for image upload');
       throw new Error('Authentication required for image upload');
     }
 
@@ -219,8 +215,6 @@ export default function CreateListingPage() {
       const isPrimary = i === 0;
 
       try {
-        console.log(`Uploading image ${i + 1}/${images.length}`, { fileName: file.name, fileSize: file.size });
-
         // Important: ne PAS envelopper le fichier dans un autre objet
         const { data } = await uploadImage({
           variables: {
@@ -230,22 +224,9 @@ export default function CreateListingPage() {
           }
         });
 
-        console.log(`Image ${i + 1} upload success:`, data);
         results.push(data);
       } catch (error) {
-        console.error(`Error uploading image ${i + 1}:`, error);
-
-        // Log détaillé des erreurs
-        if (error.graphQLErrors) {
-          error.graphQLErrors.forEach(err => {
-            console.error('GraphQL Error:', err.message, err.path, err.extensions);
-          });
-        }
-        if (error.networkError) {
-          console.error('Network Error:', error.networkError);
-        }
-
-        results.push({ error });
+      results.push({ error });
       }
     }
 
@@ -268,9 +249,6 @@ export default function CreateListingPage() {
     setIsSubmitting(true);
 
     try {
-      console.log('Submitting with token:', token);
-      console.log('Current user:', user); // Debug log
-
       // Create the listing
       const { data: listingData } = await createListing({
         variables: {
@@ -293,20 +271,14 @@ export default function CreateListingPage() {
         }
       });
 
-      console.log('Listing creation response:', listingData);
-
       if (listingData?.createListing?.listing) {
         const listingId = listingData.createListing.listing.id;
-        console.log('Listing created with ID:', listingId);
 
         // Upload images if any
         if (formData.images.length > 0) {
           try {
             const uploadResults = await uploadListingImages(listingId, formData.images);
-            console.log('All image uploads completed:', uploadResults);
           } catch (uploadError) {
-            console.error('Error during image upload process:', uploadError);
-            // Continue anyway, the listing was created successfully
           }
         }
 
@@ -314,7 +286,6 @@ export default function CreateListingPage() {
         router.push(`/listings/${listingId}`);
       }
     } catch (error) {
-      console.error('Error creating listing:', error);
 
       // Extract error message
       let errorMessage = 'Une erreur est survenue lors de la création de l\'annonce';
