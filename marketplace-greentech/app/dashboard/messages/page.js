@@ -21,7 +21,7 @@ const useDebounce = (value, delay) => {
 };
 import { useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import { MessageSquare, Send, User, ArrowLeft, Package, Search, MoreVertical, Image as ImageIcon, Paperclip, Smile } from 'lucide-react';
+import { MessageSquare, Send, User, ArrowLeft, Package, Search, MoreVertical, Image as ImageIcon, Paperclip, Smile, RefreshCw } from 'lucide-react';
 import { useQuery, useMutation } from '@apollo/client';
 import { GET_CONVERSATION, GET_ME, MY_MESSAGES } from '@/lib/graphql/queries';
 import { MARK_MESSAGE_AS_READ, SEND_MESSAGE } from '@/lib/graphql/mutations';
@@ -64,8 +64,9 @@ function MessagesPageContent() {
   });
 
   const { data: messagesData, loading: messagesLoading, error: messagesError, refetch: refetchMessages } = useQuery(MY_MESSAGES, {
-    fetchPolicy: 'cache-first', // Changé de cache-and-network à cache-first
-    notifyOnNetworkStatusChange: false // Éviter les re-renders inutiles
+    fetchPolicy: 'cache-and-network', // Restauré pour permettre les mises à jour temps réel
+    notifyOnNetworkStatusChange: false, // Éviter les re-renders inutiles
+    pollInterval: isConnected ? 0 : 15000 // Polling de secours si WebSocket déconnecté
   });
 
   const { data: conversationData, loading: conversationLoading, refetch: refetchConversation } = useQuery(GET_CONVERSATION, {
@@ -82,26 +83,29 @@ function MessagesPageContent() {
   onCompleted: (data) => {
     setNewMessage('');
     setSelectedFile(null);
-    
+
     // Ajouter le message envoyé immédiatement à l'état local
     if (data.sendMessage) {
       setAllMessages(prev => {
         const messageExists = prev.some(msg => msg?.id === data.sendMessage.id);
         if (!messageExists) {
           const newMessages = [...prev, data.sendMessage];
-          
+
           // Déclencher immédiatement la mise à jour
           setLastMessageUpdate(Date.now());
-          
+
           // Défiler vers le bas
           setTimeout(scrollToBottom, 50);
-          
+
           return newMessages;
         }
         return prev;
       });
-      
-      // Refetch supprimé - WebSocket gère la synchronisation
+
+      // Refetch optimisé - seulement après envoi de message pour synchroniser
+      setTimeout(() => {
+        refetchMessages();
+      }, 1000); // Délai plus long pour éviter les requêtes trop fréquentes
     }
   },
   onError: (error) => {
@@ -257,11 +261,24 @@ function MessagesPageContent() {
     }
   }
 
-  // Refetch supprimé - l'état local est déjà mis à jour
+  // Refetch optimisé - seulement pour les nouveaux messages reçus
+  setTimeout(() => {
+    refetchMessages();
+  }, 2000); // Délai plus long pour éviter les requêtes trop fréquentes
 }, [activeConversation, currentUser, refetchMessages]);
 
-  // Initialiser WebSocket
+  // Initialiser WebSocket avec callback de reconnexion
   const { isConnected, connectionState } = useWebSocket(currentUser?.id, handleNewMessage);
+
+  // Synchroniser quand WebSocket se reconnecte
+  useEffect(() => {
+    if (isConnected) {
+      // Rafraîchir les messages quand WebSocket se reconnecte
+      setTimeout(() => {
+        refetchMessages();
+      }, 1000);
+    }
+  }, [isConnected, refetchMessages]);
 
   // Synchroniser les messages GraphQL avec l'état local - Optimisé
   useEffect(() => {
@@ -656,8 +673,23 @@ function MessagesPageContent() {
     }, 300);
   };
 
-  // Polling supprimé pour optimiser les performances
-  // Le WebSocket gère les mises à jour en temps réel
+  // Polling intelligent - seulement si WebSocket déconnecté
+  useEffect(() => {
+    let interval;
+
+    // Polling de secours seulement si WebSocket n'est pas connecté
+    if (!isConnected && !sendingMessage) {
+      interval = setInterval(() => {
+        refetchMessages();
+      }, 10000); // Toutes les 10 secondes seulement si WebSocket down
+    }
+
+    return () => {
+      if (interval) {
+        clearInterval(interval);
+      }
+    };
+  }, [isConnected, refetchMessages, sendingMessage]);
 
   // Calculer le nombre total de messages non lus
   const unreadCount = conversations.reduce((total, conv) => total + (conv?.unreadCount || 0), 0);
@@ -704,8 +736,9 @@ function MessagesPageContent() {
           <div className="flex items-center space-x-4">
             <Link
               href="/dashboard"
-              className="text-gray-500 hover:text-green-600 mr-2 transition-colors duration-200"
+              className="text-gray-500 hover:text-green-600 mr-2 transition-colors duration-200 inline-flex items-center justify-center w-10 h-10 rounded-lg hover:bg-gray-100"
               prefetch={true}
+              replace={true}
             >
               <ArrowLeft size={24} />
             </Link>
@@ -717,6 +750,13 @@ function MessagesPageContent() {
             )}
           </div>
           <div className="flex items-center space-x-2">
+            <button
+              onClick={() => refetchMessages()}
+              className="p-2 text-gray-500 hover:text-green-600 hover:bg-green-50 rounded-lg transition-colors"
+              title="Actualiser les messages"
+            >
+              <RefreshCw size={16} />
+            </button>
             <StatusIndicator isOnline={isConnected} userId={currentUser?.id} onlineUsers={onlineUsers} />
             <span className="text-sm text-gray-600">
               {isConnected ? 'En ligne' : connectionState === 'connecting' ? 'Connexion...' : 'Hors ligne'}
