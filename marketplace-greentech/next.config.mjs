@@ -26,8 +26,6 @@ const nextConfig = {
   },
   // Configuration pour le déploiement
   output: 'standalone',
-  // Optimisations pour la production
-  swcMinify: true,
   // Configuration des headers de sécurité
   async headers() {
     return [
@@ -44,7 +42,7 @@ const nextConfig = {
           },
           {
             key: 'Referrer-Policy',
-            value: 'origin-when-cross-origin',J
+            value: 'origin-when-cross-origin',
           },
         ],
       },
