@@ -78,6 +78,58 @@ function MessagesPageContent() {
     fetchPolicy: 'cache-first' // Utiliser le cache en priorité
   });
 
+  // Initialiser WebSocket d'abord pour avoir isConnected disponible
+  const currentUser = userData?.me;
+
+  // Gestionnaire de nouveaux messages WebSocket amélioré (défini avant useWebSocket)
+  const handleNewMessage = useCallback((messageData) => {
+    // Extraction correcte du message selon la structure reçue
+    let message = messageData;
+
+    // Si c'est une mutation SendMessage, extraire le message
+    if (messageData?.sendMessage) {
+      message = messageData.sendMessage;
+    }
+
+    // Si c'est wrappé dans messageObj
+    if (messageData?.messageObj) {
+      message = messageData.messageObj;
+    }
+
+    if (!message || !message.id) {
+      return;
+    }
+
+    // Vérifier que toutes les propriétés nécessaires sont présentes
+    if (!message.sender || !message.receiver || !message.listing) {
+      return;
+    }
+
+    setAllMessages(prev => {
+      // Vérifier si le message existe déjà
+      const messageExists = prev.some(msg => msg?.id === message.id);
+      if (messageExists) {
+        return prev;
+      }
+
+      const newMessages = [...prev, message];
+
+      // Forcer la mise à jour des conversations
+      setTimeout(() => {
+        setLastMessageUpdate(Date.now());
+      }, 0);
+
+      return newMessages;
+    });
+
+    // Refetch optimisé - seulement pour les nouveaux messages reçus
+    setTimeout(() => {
+      refetchMessages();
+    }, 2000); // Délai plus long pour éviter les requêtes trop fréquentes
+  }, [refetchMessages, setLastMessageUpdate]);
+
+  const { isConnected, connectionState } = useWebSocket(currentUser?.id, handleNewMessage);
+
   const { data: messagesData, loading: messagesLoading, error: messagesError, refetch: refetchMessages } = useQuery(MY_MESSAGES, {
     fetchPolicy: 'cache-and-network', // Restauré pour permettre les mises à jour temps réel
     notifyOnNetworkStatusChange: false, // Éviter les re-renders inutiles
@@ -136,8 +188,6 @@ function MessagesPageContent() {
       // Error logging removed for production security
     }
   });
-
-  const currentUser = userData?.me;
 
   // Composant pour observer la visibilité des messages
   const MessageVisibilityObserver = ({ messageId, children }) => {
@@ -215,75 +265,7 @@ function MessagesPageContent() {
     };
   }, []);
 
-  // Gestionnaire de nouveaux messages WebSocket amélioré
-  const handleNewMessage = useCallback((messageData) => {
-  // Extraction correcte du message selon la structure reçue
-  let message = messageData;
 
-  // Si c'est une mutation SendMessage, extraire le message
-  if (messageData?.sendMessage) {
-    message = messageData.sendMessage;
-  }
-
-  // Si c'est wrappé dans messageObj
-  if (messageData?.messageObj) {
-    message = messageData.messageObj;
-  }
-
-  if (!message || !message.id) {
-    return;
-  }
-
-  // Vérifier que toutes les propriétés nécessaires sont présentes
-  if (!message.sender || !message.receiver || !message.listing) {
-    return;
-  }
-
-  setAllMessages(prev => {
-    // Vérifier si le message existe déjà
-    const messageExists = prev.some(msg => msg?.id === message.id);
-    if (messageExists) {
-      return prev;
-    }
-
-    const newMessages = [...prev, message];
-
-    // Forcer la mise à jour des conversations
-    setTimeout(() => {
-      setLastMessageUpdate(Date.now());
-    }, 0);
-
-    return newMessages;
-  });
-
-  // Gestion de l'affichage et marquage comme lu
-  if (activeConversation && currentUser && message?.sender && message?.receiver && message?.listing) {
-    const isRelevantToActiveConversation =
-      ((message.sender.id === activeConversation.otherUser?.id && message.receiver.id === currentUser.id) ||
-       (message.sender.id === currentUser.id && message.receiver.id === activeConversation.otherUser?.id)) &&
-      message.listing.id === activeConversation.listing?.id;
-
-    if (isRelevantToActiveConversation) {
-      // Défiler vers le bas pour les nouveaux messages
-      setTimeout(scrollToBottom, 100);
-
-      // Marquer comme lu immédiatement si c'est un message reçu dans la conversation active
-      if (message.receiver.id === currentUser.id && message.sender.id === activeConversation.otherUser?.id) {
-        setTimeout(() => {
-          handleMarkAsRead(message.id);
-        }, 300); // Réduit le délai pour un marquage plus rapide
-      }
-    }
-  }
-
-  // Refetch optimisé - seulement pour les nouveaux messages reçus
-  setTimeout(() => {
-    refetchMessages();
-  }, 2000); // Délai plus long pour éviter les requêtes trop fréquentes
-}, [activeConversation, currentUser, refetchMessages]);
-
-  // Initialiser WebSocket avec callback de reconnexion
-  const { isConnected, connectionState } = useWebSocket(currentUser?.id, handleNewMessage);
 
   // Synchroniser quand WebSocket se reconnecte
   useEffect(() => {
