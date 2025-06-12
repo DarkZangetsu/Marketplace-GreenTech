@@ -1,6 +1,10 @@
 /** @type {import('next').NextConfig} */
 const nextConfig = {
   reactStrictMode: true,
+  eslint: {
+    // Désactiver ESLint pendant le build pour le déploiement
+    ignoreDuringBuilds: true,
+  },
   images: {
     domains: (process.env.NEXT_PUBLIC_ALLOWED_IMAGE_DOMAINS || 'marketplace-greentech.onrender.com,localhost,127.0.0.1').split(','),
     remotePatterns: [

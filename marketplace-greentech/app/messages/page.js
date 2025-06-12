@@ -1,11 +1,12 @@
 'use client';
 
-import { useEffect } from 'react';
+import { useEffect, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useQuery } from '@apollo/client';
 import { GET_ME } from '@/lib/graphql/queries';
 
-export default function MessagesRedirectPage() {
+// Composant qui utilise useSearchParams
+function MessagesRedirectPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const listingId = searchParams.get('listing');
@@ -46,5 +47,25 @@ export default function MessagesRedirectPage() {
         </p>
       </div>
     </div>
+  );
+}
+
+// Composant principal avec Suspense boundary
+export default function MessagesRedirectPage() {
+  return (
+    <Suspense fallback={
+      <div className="container mx-auto px-4 py-16">
+        <div className="flex flex-col items-center justify-center">
+          <div className="animate-pulse flex space-x-4 items-center">
+            <div className="h-4 w-4 bg-green-500 rounded-full"></div>
+            <div className="h-4 w-4 bg-green-500 rounded-full"></div>
+            <div className="h-4 w-4 bg-green-500 rounded-full"></div>
+          </div>
+          <p className="text-gray-600 mt-4">Chargement...</p>
+        </div>
+      </div>
+    }>
+      <MessagesRedirectPageContent />
+    </Suspense>
   );
 }

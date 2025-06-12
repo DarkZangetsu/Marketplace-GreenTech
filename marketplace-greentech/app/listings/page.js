@@ -1,15 +1,16 @@
 /* eslint-disable react/no-unescaped-entities */
 'use client';
 
-import { useState, useMemo, useRef, useEffect } from 'react';
+import { useState, useMemo, useEffect, Suspense } from 'react';
 import { useSearchParams } from 'next/navigation';
 import { useQuery } from '@apollo/client';
 import { GET_LISTINGS, GET_CATEGORIES } from '@/lib/graphql/queries';
-import { Search, Filter, ArrowUpDown, Grid, List, ChevronLeft, ChevronRight, X } from 'lucide-react';
+import { Search, Filter, Grid, List, ChevronLeft, ChevronRight, X } from 'lucide-react';
 import ListingCard from '../components/ListingCard';
 import { conditions, locations } from '../components/constants/CreateListingConstant';
 
-export default function ListingsPage() {
+// Composant qui utilise useSearchParams
+function ListingsPageContent() {
   const searchParams = useSearchParams();
   const [viewMode, setViewMode] = useState('grid');
   const [showFilters, setShowFilters] = useState(false);
@@ -752,5 +753,21 @@ export default function ListingsPage() {
         </div>
       </div>
     </div>
+  );
+}
+
+// Composant principal avec Suspense boundary
+export default function ListingsPage() {
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-gray-50 flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-green-600 mx-auto mb-4"></div>
+          <p className="text-gray-600">Chargement des annonces...</p>
+        </div>
+      </div>
+    }>
+      <ListingsPageContent />
+    </Suspense>
   );
 }
