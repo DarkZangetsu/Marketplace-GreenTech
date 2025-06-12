@@ -57,41 +57,41 @@ MIDDLEWARE = [
 
 ROOT_URLCONF = 'greentech.urls'
 
-# ← AJOUT : Configuration ASGI pour WebSockets
+# Configuration ASGI pour WebSockets
 ASGI_APPLICATION = 'greentech.asgi.application'
 
-# ← AJOUT : Configuration des channels (Redis requis)
-import os
+# Configuration des channels (Redis requis)
+# import os
 
-# Configuration Redis - Priorité à Render, fallback vers Redis externe
-REDIS_URL = os.environ.get('REDIS_URL')
+# # Configuration Redis - Priorité à Render, fallback vers Redis externe
+# REDIS_URL = os.environ.get('REDIS_URL')
 
-if REDIS_URL:
-    # Utiliser Redis de Render (recommandé pour la production)
-    print(f"Utilisation de Redis Render: {REDIS_URL[:20]}...")
-    CHANNEL_LAYERS = {
-        'default': {
-            'BACKEND': 'channels_redis.core.RedisChannelLayer',
-            'CONFIG': {
-                "hosts": [REDIS_URL],
-                "capacity": 1500,
-                "expiry": 60,
-            },
-        },
-    }
-else:
-    # Fallback vers Redis externe (développement)
-    print("Utilisation de Redis externe: 51.20.226.76:6379")
-    CHANNEL_LAYERS = {
-        'default': {
-            'BACKEND': 'channels_redis.core.RedisChannelLayer',
-            'CONFIG': {
-                "hosts": [('51.20.226.76', 6379)],
-                "capacity": 1500,
-                "expiry": 60,
-            },
-        },
-    }
+# if REDIS_URL:
+#     # Utiliser Redis de Render (recommandé pour la production)
+#     print(f"Utilisation de Redis Render: {REDIS_URL[:20]}...")
+#     CHANNEL_LAYERS = {
+#         'default': {
+#             'BACKEND': 'channels_redis.core.RedisChannelLayer',
+#             'CONFIG': {
+#                 "hosts": [REDIS_URL],
+#                 "capacity": 1500,
+#                 "expiry": 60,
+#             },
+#         },
+#     }
+# else:
+#     # Fallback vers Redis externe (développement)
+#     print("Utilisation de Redis externe: 51.20.226.76:6379")
+#     CHANNEL_LAYERS = {
+#         'default': {
+#             'BACKEND': 'channels_redis.core.RedisChannelLayer',
+#             'CONFIG': {
+#                 "hosts": [('51.20.226.76', 6379)],
+#                 "capacity": 1500,
+#                 "expiry": 60,
+#             },
+#         },
+#     }
 
 # CHANNEL_LAYERS = {
 #     'default': {
@@ -117,11 +117,11 @@ else:
 # }
 
 # Si vous n'avez pas Redis, utilisez cette configuration temporaire (pour développement uniquement) :
-# CHANNEL_LAYERS = {
-#     'default': {
-#         'BACKEND': 'channels.layers.InMemoryChannelLayer'
-#     }
-# }
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels.layers.InMemoryChannelLayer'
+    }
+}
 
 TEMPLATES = [
     {
