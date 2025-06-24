@@ -9,6 +9,20 @@ from datetime import timedelta
 
 BASE_DIR = Path(__file__).resolve().parent.parent
 
+# Charger le fichier .env manuellement
+def load_env_file():
+    env_file = BASE_DIR / '.env'
+    if env_file.exists():
+        with open(env_file, 'r', encoding='utf-8') as f:
+            for line in f:
+                line = line.strip()
+                if line and not line.startswith('#') and '=' in line:
+                    key, value = line.split('=', 1)
+                    os.environ.setdefault(key.strip(), value.strip())
+
+# Charger les variables d'environnement
+load_env_file()
+
 SECRET_KEY = 'token'
 DEBUG = True
 
@@ -82,16 +96,40 @@ ASGI_APPLICATION = 'greentech.asgi.application'
 # else:
 #     # Fallback vers Redis externe (développement)
 #     print("Utilisation de Redis externe: 51.20.226.76:6379")
-#     CHANNEL_LAYERS = {
-#         'default': {
-#             'BACKEND': 'channels_redis.core.RedisChannelLayer',
-#             'CONFIG': {
-#                 "hosts": [('51.20.226.76', 6379)],
-#                 "capacity": 1500,
-#                 "expiry": 60,
-#             },
-#         },
-#     }
+# Configuration Redis avec variables d'environnement
+REDIS_HOST = os.environ.get('REDIS_HOST', 'localhost')
+REDIS_PORT = int(os.environ.get('REDIS_PORT', 6379))
+REDIS_PASSWORD = os.environ.get('REDIS_PASSWORD', '')
+REDIS_CAPACITY = int(os.environ.get('REDIS_CAPACITY', 1500))
+REDIS_EXPIRY = int(os.environ.get('REDIS_EXPIRY', 60))
+
+# Configuration des Channel Layers avec Redis
+if REDIS_PASSWORD:
+    # Avec mot de passe
+    CHANNEL_LAYERS = {
+        'default': {
+            'BACKEND': 'channels_redis.core.RedisChannelLayer',
+            'CONFIG': {
+                "hosts": [f"redis://:{REDIS_PASSWORD}@{REDIS_HOST}:{REDIS_PORT}/0"],
+                "capacity": REDIS_CAPACITY,
+                "expiry": REDIS_EXPIRY,
+            },
+        },
+    }
+else:
+    # Sans mot de passe
+    CHANNEL_LAYERS = {
+        'default': {
+            'BACKEND': 'channels_redis.core.RedisChannelLayer',
+            'CONFIG': {
+                "hosts": [(REDIS_HOST, REDIS_PORT)],
+                "capacity": REDIS_CAPACITY,
+                "expiry": REDIS_EXPIRY,
+            },
+        },
+    }
+
+print(f"Configuration Redis: {REDIS_HOST}:{REDIS_PORT} (capacity: {REDIS_CAPACITY}, expiry: {REDIS_EXPIRY}s)")
 
 # CHANNEL_LAYERS = {
 #     'default': {
@@ -117,11 +155,11 @@ ASGI_APPLICATION = 'greentech.asgi.application'
 # }
 
 # Si vous n'avez pas Redis, utilisez cette configuration temporaire (pour développement uniquement) :
-CHANNEL_LAYERS = {
-    'default': {
-        'BACKEND': 'channels.layers.InMemoryChannelLayer'
-    }
-}
+# CHANNEL_LAYERS = {
+#     'default': {
+#         'BACKEND': 'channels.layers.InMemoryChannelLayer'
+#     }
+# }
 
 TEMPLATES = [
     {
@@ -141,12 +179,29 @@ TEMPLATES = [
 
 WSGI_APPLICATION = 'greentech.wsgi.application'
 
-DATABASES = {
-    'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',
+# Configuration base de données - PostgreSQL ou SQLite
+if os.environ.get('USE_POSTGRESQL', 'False').lower() == 'true':
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': os.environ.get('DB_NAME'),
+            'USER': os.environ.get('DB_USER'),
+            'PASSWORD': os.environ.get('DB_PASSWORD'),
+            'HOST': os.environ.get('DB_HOST'),
+            'PORT': os.environ.get('DB_PORT'),
+            'OPTIONS': {
+                'sslmode': 'prefer',
+            },
+        }
     }
-}
+else:
+    # Configuration SQLite par défaut
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.sqlite3',
+            'NAME': BASE_DIR / 'db.sqlite3',
+        }
+    }
 
 AUTH_PASSWORD_VALIDATORS = [
     {
