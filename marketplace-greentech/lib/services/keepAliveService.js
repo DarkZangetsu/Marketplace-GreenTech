@@ -17,8 +17,8 @@ class KeepAliveService {
     
     // URLs à pinger
     this.endpoints = [
-      '/api/health/',  // Endpoint de santé
-      '/graphql/',     // Endpoint GraphQL
+      '/api/health/', 
+      '/graphql/',  
     ];
     
     this.currentEndpointIndex = 0;
@@ -30,7 +30,7 @@ class KeepAliveService {
   getBackendUrl() {
     // En production, utiliser l'URL de Render
     if (process.env.NODE_ENV === 'production') {
-      return process.env.NEXT_PUBLIC_API_URL || 'https://marketplace-greentech.onrender.com';
+      return process.env.NEXT_PUBLIC_API_URL;
     }
     
     // En développement, vérifier si on utilise le serveur distant
@@ -57,7 +57,6 @@ class KeepAliveService {
   async pingServer() {
     const backendUrl = this.getBackendUrl();
     if (!backendUrl) {
-      console.log('🔄 Keep-alive: Backend local détecté, service désactivé');
       this.stop();
       return false;
     }
@@ -66,7 +65,6 @@ class KeepAliveService {
     const url = `${backendUrl}${endpoint}`;
     
     try {
-      console.log(`🔄 Keep-alive: Ping ${url}...`);
       
       const controller = new AbortController();
       const timeoutId = setTimeout(() => controller.abort(), this.timeout);
