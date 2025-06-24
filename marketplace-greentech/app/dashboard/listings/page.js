@@ -471,7 +471,7 @@ export default function UserListingsPage() {
                           <div className="flex-shrink-0 h-12 w-12 bg-gray-200 rounded-lg overflow-hidden">
                             {listing.primaryImage ? (
                               <Image
-                                src={`${process.env.NEXT_PUBLIC_MEDIA_URL}${listing.images[0].image}`}
+                                src={`${process.env.NEXT_PUBLIC_MEDIA_URL}${listing.primaryImage.image}`}
                                 alt={listing.title}
                                 width={48}
                                 height={48}
