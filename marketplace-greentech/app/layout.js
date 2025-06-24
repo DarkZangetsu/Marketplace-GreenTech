@@ -8,6 +8,7 @@ import { ApolloWrapper } from "./components/AppoloWrapper";
 import { usePathname } from 'next/navigation';
 import LoadingOverlay from './components/LoadingOverlay';
 import AuthCleaner from './components/AuthCleaner';
+import { KeepAliveBackground } from './components/KeepAliveManager';
 import { useState, useEffect } from 'react';
 
 const inter = Inter({ subsets: ["latin"] });
@@ -63,6 +64,7 @@ export default function RootLayout({ children }) {
       <body className={inter.className}>
         <ApolloWrapper>
           <AuthCleaner />
+          <KeepAliveBackground />
           <ConditionalLayout>
             {children}
           </ConditionalLayout>
