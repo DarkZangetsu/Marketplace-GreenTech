@@ -97,39 +97,55 @@ ASGI_APPLICATION = 'greentech.asgi.application'
 #     # Fallback vers Redis externe (développement)
 #     print("Utilisation de Redis externe: 51.20.226.76:6379")
 # Configuration Redis avec variables d'environnement
-REDIS_HOST = os.environ.get('REDIS_HOST', 'localhost')
-REDIS_PORT = int(os.environ.get('REDIS_PORT', 6379))
-REDIS_PASSWORD = os.environ.get('REDIS_PASSWORD', '')
-REDIS_CAPACITY = int(os.environ.get('REDIS_CAPACITY', 1500))
-REDIS_EXPIRY = int(os.environ.get('REDIS_EXPIRY', 60))
+REDIS_HOST = os.environ.get('REDIS_HOST')
+REDIS_PORT = int(os.environ.get('REDIS_PORT'))
+REDIS_PASSWORD = os.environ.get('REDIS_PASSWORD')
+REDIS_CAPACITY = int(os.environ.get('REDIS_CAPACITY'))
+REDIS_EXPIRY = int(os.environ.get('REDIS_EXPIRY'))
 
-# Configuration des Channel Layers avec Redis
-if REDIS_PASSWORD:
-    # Avec mot de passe
-    CHANNEL_LAYERS = {
-        'default': {
-            'BACKEND': 'channels_redis.core.RedisChannelLayer',
-            'CONFIG': {
-                "hosts": [f"redis://:{REDIS_PASSWORD}@{REDIS_HOST}:{REDIS_PORT}/0"],
-                "capacity": REDIS_CAPACITY,
-                "expiry": REDIS_EXPIRY,
-            },
-        },
-    }
-else:
-    # Sans mot de passe
-    CHANNEL_LAYERS = {
-        'default': {
-            'BACKEND': 'channels_redis.core.RedisChannelLayer',
-            'CONFIG': {
-                "hosts": [(REDIS_HOST, REDIS_PORT)],
-                "capacity": REDIS_CAPACITY,
-                "expiry": REDIS_EXPIRY,
-            },
-        },
-    }
+# Configuration des Channel Layers avec fallback
+# USE_REDIS = os.environ.get('USE_REDIS', 'True').lower() == 'true'
 
-print(f"Configuration Redis: {REDIS_HOST}:{REDIS_PORT} (capacity: {REDIS_CAPACITY}, expiry: {REDIS_EXPIRY}s)")
+# if USE_REDIS:
+#     try:
+#         if REDIS_PASSWORD:
+#             # Avec mot de passe
+#             CHANNEL_LAYERS = {
+#                 'default': {
+#                     'BACKEND': 'channels_redis.core.RedisChannelLayer',
+#                     'CONFIG': {
+#                         "hosts": [f"redis://:{REDIS_PASSWORD}@{REDIS_HOST}:{REDIS_PORT}/0"],
+#                         "capacity": REDIS_CAPACITY,
+#                         "expiry": REDIS_EXPIRY,
+#                     },
+#                 },
+#             }
+#         else:
+#             # Sans mot de passe
+#             CHANNEL_LAYERS = {
+#                 'default': {
+#                     'BACKEND': 'channels_redis.core.RedisChannelLayer',
+#                     'CONFIG': {
+#                         "hosts": [(REDIS_HOST, REDIS_PORT)],
+#                         "capacity": REDIS_CAPACITY,
+#                         "expiry": REDIS_EXPIRY,
+#                     },
+#                 },
+#             }
+#         print(f"Configuration Redis: {REDIS_HOST}:{REDIS_PORT} (capacity: {REDIS_CAPACITY}, expiry: {REDIS_EXPIRY}s)")
+#     except Exception as e:
+#         print(f" Erreur Redis: {e}")
+#         print("Utilisation d'InMemoryChannelLayer comme fallback")
+#         USE_REDIS = False
+
+# if not USE_REDIS:
+#     # Fallback vers InMemoryChannelLayer (développement uniquement)
+#     CHANNEL_LAYERS = {
+#         'default': {
+#             'BACKEND': 'channels.layers.InMemoryChannelLayer'
+#         }
+#     }
+#     print("Configuration: InMemoryChannelLayer (développement uniquement)")
 
 # CHANNEL_LAYERS = {
 #     'default': {
@@ -155,11 +171,11 @@ print(f"Configuration Redis: {REDIS_HOST}:{REDIS_PORT} (capacity: {REDIS_CAPACIT
 # }
 
 # Si vous n'avez pas Redis, utilisez cette configuration temporaire (pour développement uniquement) :
-# CHANNEL_LAYERS = {
-#     'default': {
-#         'BACKEND': 'channels.layers.InMemoryChannelLayer'
-#     }
-# }
+CHANNEL_LAYERS = {
+    'default': {
+        'BACKEND': 'channels.layers.InMemoryChannelLayer'
+    }
+}
 
 TEMPLATES = [
     {
