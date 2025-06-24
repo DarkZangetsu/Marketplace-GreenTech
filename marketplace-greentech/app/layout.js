@@ -7,6 +7,7 @@ import Footer from './components/Footer';
 import { ApolloWrapper } from "./components/AppoloWrapper";
 import { usePathname } from 'next/navigation';
 import LoadingOverlay from './components/LoadingOverlay';
+import AuthCleaner from './components/AuthCleaner';
 import { useState, useEffect } from 'react';
 
 const inter = Inter({ subsets: ["latin"] });
@@ -61,6 +62,7 @@ export default function RootLayout({ children }) {
     <html lang="fr">
       <body className={inter.className}>
         <ApolloWrapper>
+          <AuthCleaner />
           <ConditionalLayout>
             {children}
           </ConditionalLayout>
