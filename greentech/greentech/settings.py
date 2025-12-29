@@ -97,11 +97,11 @@ ASGI_APPLICATION = 'greentech.asgi.application'
 #     # Fallback vers Redis externe (développement)
 #     print("Utilisation de Redis externe: 51.20.226.76:6379")
 # Configuration Redis avec variables d'environnement
-REDIS_HOST = os.environ.get('REDIS_HOST')
-REDIS_PORT = int(os.environ.get('REDIS_PORT'))
-REDIS_PASSWORD = os.environ.get('REDIS_PASSWORD')
-REDIS_CAPACITY = int(os.environ.get('REDIS_CAPACITY'))
-REDIS_EXPIRY = int(os.environ.get('REDIS_EXPIRY'))
+# REDIS_HOST = os.environ.get('REDIS_HOST')
+# REDIS_PORT = int(os.environ.get('REDIS_PORT'))
+# REDIS_PASSWORD = os.environ.get('REDIS_PASSWORD')
+# REDIS_CAPACITY = int(os.environ.get('REDIS_CAPACITY'))
+# REDIS_EXPIRY = int(os.environ.get('REDIS_EXPIRY'))
 
 # Configuration des Channel Layers avec fallback
 # USE_REDIS = os.environ.get('USE_REDIS', 'True').lower() == 'true'
@@ -196,23 +196,30 @@ TEMPLATES = [
 WSGI_APPLICATION = 'greentech.wsgi.application'
 
 # Configuration base de données - PostgreSQL ou SQLite
-if os.environ.get('USE_POSTGRESQL', 'False').lower() == 'true':
-    DATABASES = {
-        'default': {
-            'ENGINE': 'django.db.backends.postgresql',
-            'NAME': os.environ.get('DB_NAME'),
-            'USER': os.environ.get('DB_USER'),
-            'PASSWORD': os.environ.get('DB_PASSWORD'),
-            'HOST': os.environ.get('DB_HOST'),
-            'PORT': os.environ.get('DB_PORT'),
-            'OPTIONS': {
-                'sslmode': 'prefer',
-            },
-        }
-    }
-else:
-    # Configuration SQLite par défaut
-    DATABASES = {
+# if os.environ.get('USE_POSTGRESQL', 'False').lower() == 'true':
+#     DATABASES = {
+#         'default': {
+#             'ENGINE': 'django.db.backends.postgresql',
+#             'NAME': os.environ.get('DB_NAME'),
+#             'USER': os.environ.get('DB_USER'),
+#             'PASSWORD': os.environ.get('DB_PASSWORD'),
+#             'HOST': os.environ.get('DB_HOST'),
+#             'PORT': os.environ.get('DB_PORT'),
+#             'OPTIONS': {
+#                 'sslmode': 'prefer',
+#             },
+#         }
+#     }
+# else:
+#     # Configuration SQLite par défaut
+#     DATABASES = {
+#         'default': {
+#             'ENGINE': 'django.db.backends.sqlite3',
+#             'NAME': BASE_DIR / 'db.sqlite3',
+#         }
+#     }
+
+DATABASES = {
         'default': {
             'ENGINE': 'django.db.backends.sqlite3',
             'NAME': BASE_DIR / 'db.sqlite3',

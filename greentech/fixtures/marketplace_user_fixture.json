@@ -3,7 +3,7 @@
     "model": "marketplace.user",
     "pk": 1,
     "fields": {
-      "password": "pbkdf2_sha256$1000000$AMqYaLKIIAxXeUEkh5UJqs$DP55hHAF9Iq112NfFd8aiZ/GkgVX3HrQe7KxnpzAI4A=",
+      "password": "pbkdf2_sha256$1000000$IG9GW0RESDIc5SrGX9AvrR$8eCngMuaiLr/J5orfDvgIGkCyuKe8mFRf6InjZegFLE=",
       "last_login": null,
       "is_superuser": true,
       "username": "zangetsu",
